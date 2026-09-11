@@ -64,6 +64,20 @@ class EngagementDAO:
             )
         )
 
+    async def list_diary_entries(
+        self, *, user_id: uuid.UUID, limit: int
+    ) -> list[DiaryEntry]:
+        return list(
+            (
+                await self._session.scalars(
+                    select(DiaryEntry)
+                    .where(DiaryEntry.user_id == user_id)
+                    .order_by(DiaryEntry.entry_day.desc())
+                    .limit(limit)
+                )
+            ).all()
+        )
+
     async def add_notification(
         self,
         *,

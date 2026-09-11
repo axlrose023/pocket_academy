@@ -71,6 +71,20 @@ class DiaryEntryResponse(BaseModel):
     reward_granted: bool = False
 
 
+class DiaryEntryListResponse(BaseModel):
+    entries: list[DiaryEntryResponse]
+
+
+class DepositResponse(BaseModel):
+    amount: Decimal
+    kind: str
+    occurred_at: datetime.datetime
+
+
+class DepositListResponse(BaseModel):
+    deposits: list[DepositResponse]
+
+
 class NotificationResponse(BaseModel):
     id: uuid.UUID
     notification_type: str

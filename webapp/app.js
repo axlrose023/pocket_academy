@@ -16,6 +16,8 @@ const state = {
   assets: [],
   availability: null,
   diary: null,
+  diaryHistory: [],
+  deposits: [],
   mood: 3,
   notifications: [],
   productFilter: 'all',
@@ -23,6 +25,7 @@ const state = {
   profile: null,
   selectedAssetId: null,
   selectedTimeframe: null,
+  signals: [],
   signalMode: 'standard',
 };
 
@@ -89,13 +92,65 @@ const renderHome = () => {
   if (!profile.next_status) {
     progress.style.width = '100%';
     $('#status-next').textContent = 'Максимальный статус достигнут.';
-    return;
+  } else {
+    const currentMinimum = amount(profile.current_status_minimum_deposits);
+    const nextMinimum = amount(profile.next_status_minimum_deposits);
+    const ratio = ((amount(profile.total_deposits) - currentMinimum) / (nextMinimum - currentMinimum)) * 100;
+    progress.style.width = `${Math.max(4, Math.min(100, ratio))}%`;
+    $('#status-next').textContent = `До ${statusLabel(profile.next_status)}: ${dollars(profile.remaining_deposits)} депозитов`;
   }
-  const currentMinimum = amount(profile.current_status_minimum_deposits);
-  const nextMinimum = amount(profile.next_status_minimum_deposits);
-  const ratio = ((amount(profile.total_deposits) - currentMinimum) / (nextMinimum - currentMinimum)) * 100;
-  progress.style.width = `${Math.max(4, Math.min(100, ratio))}%`;
-  $('#status-next').textContent = `До ${statusLabel(profile.next_status)}: ${dollars(profile.remaining_deposits)} депозитов`;
+  renderJourney();
+  renderHomeProducts();
+};
+
+const appendJourneyStep = (root, index, title, description, action) => {
+  const step = document.createElement('li');
+  step.className = 'step';
+  const mark = document.createElement('span');
+  mark.textContent = index;
+  const content = document.createElement('div');
+  const heading = document.createElement('strong');
+  heading.textContent = title;
+  const text = document.createElement('p');
+  text.textContent = description;
+  content.append(heading, text);
+  if (action) content.append(action);
+  step.append(mark, content);
+  root.append(step);
+};
+
+const renderJourney = () => {
+  const root = $('#journey-steps');
+  const profile = state.profile;
+  root.replaceChildren();
+  appendJourneyStep(
+    root,
+    '1',
+    'Регистрация',
+    profile.is_registered ? '✅ Аккаунт Pocket Option подключён.' : 'Партнёрская ссылка появится после завершения настройки Pocket Option.',
+  );
+  let depositText = profile.has_deposit
+    ? `✅ Первый депозит: ${dollars(profile.first_deposit_amount)}.`
+    : 'После регистрации пополни торговый счёт, чтобы активировать сигналы.';
+  if (profile.is_low_first_deposit) {
+    depositText += ` Сумма меньше порога ${dollars(profile.minimum_first_deposit)}.`;
+  }
+  const lowDepositNote = profile.is_low_first_deposit
+    ? Object.assign(document.createElement('span'), { className: 'text-note', textContent: 'Перерегистрация станет доступна после настройки нового click_id.' })
+    : null;
+  appendJourneyStep(root, '2', 'Первый депозит', depositText, lowDepositNote);
+  let managerAction = null;
+  if (profile.has_deposit && profile.manager_telegram_url) {
+    managerAction = createButton('Написать менеджеру', 'text-button');
+    managerAction.addEventListener('click', () => openExternal(profile.manager_telegram_url));
+  }
+  appendJourneyStep(
+    root,
+    '3',
+    'Поддержка',
+    profile.has_deposit ? 'Менеджер доступен для вопросов по Academy.' : 'Контакт менеджера открывается после первого депозита.',
+    managerAction,
+  );
 };
 
 const renderProfile = () => {
@@ -164,15 +219,21 @@ const renderSignalControls = () => {
   });
 
   const limit = availability.limit === null ? '∞' : availability.limit;
-  $('#signal-limit').textContent = `${availability.used} / ${limit}`;
+  const signalLimit = $('#signal-limit');
+  signalLimit.hidden = state.availability.standard.used === 0 && state.availability.premium.used === 0;
+  signalLimit.textContent = `${availability.used} / ${limit}`;
   const notice = $('#signal-notice');
   const button = $('#signal-button');
   const nextAvailableAt = availability.next_available_at ? new Date(availability.next_available_at) : null;
   const isWaiting = nextAvailableAt && nextAvailableAt > new Date();
   const premiumBlocked = isPremium && !state.availability.is_premium_available;
   const dailyLimitReached = availability.limit !== null && availability.used >= availability.limit;
+  const registrationRequired = !state.profile.is_registered;
+  const depositRequired = !state.profile.has_deposit;
   button.disabled = Boolean(
     state.availability.is_blocked
+      || registrationRequired
+      || depositRequired
       || premiumBlocked
       || isWaiting
       || dailyLimitReached
@@ -180,15 +241,26 @@ const renderSignalControls = () => {
       || !state.selectedTimeframe,
   );
 
-  if (state.availability.is_blocked) {
+  if (registrationRequired) {
+    button.textContent = 'Зарегистрироваться';
+    notice.textContent = 'Сначала подключи торговый аккаунт Pocket Option.';
+  } else if (depositRequired) {
+    button.textContent = 'Сделать депозит';
+    notice.textContent = 'Первый депозит активирует торговые сигналы.';
+  } else if (state.availability.is_blocked) {
+    button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
     notice.textContent = 'Доступ к сигналам временно ограничен.';
   } else if (premiumBlocked) {
+    button.textContent = 'Premium-сигнал';
     notice.textContent = `Premium доступен от ${dollars(state.availability.premium_minimum_deposit)} депозитов.`;
   } else if (dailyLimitReached) {
+    button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
     notice.textContent = 'Дневной лимит сигналов исчерпан.';
   } else if (isWaiting) {
+    button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
     notice.textContent = `Следующий сигнал будет доступен в ${nextAvailableAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}.`;
   } else {
+    button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
     notice.textContent = isPremium ? 'Premium-сигналы имеют отдельный лимит.' : 'Направление и вероятность формируются для твоего статуса.';
   }
 };
@@ -216,6 +288,107 @@ const renderProducts = () => {
     card.append(mark, body, productAction(product));
     root.append(card);
   });
+};
+
+const renderHomeProducts = () => {
+  const root = $('#home-product-list');
+  root.replaceChildren();
+  const products = state.products.slice(0, 3);
+  if (!products.length) {
+    root.append(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Материалы скоро появятся в Academy.' }));
+    return;
+  }
+  products.forEach((product) => {
+    const card = document.createElement('article');
+    card.className = 'product-card product-card--compact';
+    const body = document.createElement('div');
+    const title = document.createElement('h3');
+    title.textContent = product.title;
+    const description = document.createElement('p');
+    description.textContent = product.price_pac === null ? 'Доступ по условию Academy.' : product.price_pac === '0' || Number(product.price_pac) === 0 ? 'Бесплатно' : pac(product.price_pac);
+    body.append(title, description);
+    card.append(body, productAction(product));
+    root.append(card);
+  });
+};
+
+const renderSignalHistory = () => {
+  const root = $('#signal-history');
+  root.replaceChildren();
+  if (!state.signals.length) {
+    root.append(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Сигналов пока нет.' }));
+    return;
+  }
+  state.signals.forEach((signal) => {
+    const item = document.createElement('article');
+    item.className = 'history-item';
+    const title = document.createElement('strong');
+    title.textContent = `${signal.direction.toUpperCase()} · ${signal.probability}%`;
+    const details = document.createElement('p');
+    details.className = 'muted';
+    details.textContent = `${signal.asset_label} · ${timeframeLabel(signal.timeframe_seconds)}${signal.is_premium ? ' · Premium' : ''}`;
+    item.append(title, details);
+    root.append(item);
+  });
+};
+
+const renderProfileCollections = () => {
+  const productsRoot = $('#my-product-list');
+  productsRoot.replaceChildren();
+  const availableProducts = state.products.filter((product) => product.is_available);
+  if (!availableProducts.length) {
+    productsRoot.append(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Открытых продуктов пока нет.' }));
+  } else {
+    availableProducts.forEach((product) => {
+      const item = document.createElement('article');
+      item.className = 'history-item';
+      const title = document.createElement('strong');
+      title.textContent = product.title;
+      item.append(title);
+      if (product.external_url) {
+        const button = createButton('Открыть', 'text-button');
+        button.addEventListener('click', () => openExternal(product.external_url));
+        item.append(button);
+      }
+      productsRoot.append(item);
+    });
+  }
+
+  const depositsRoot = $('#deposit-history');
+  depositsRoot.replaceChildren();
+  if (!state.deposits.length) {
+    depositsRoot.append(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Депозитов пока нет.' }));
+  } else {
+    state.deposits.forEach((deposit) => {
+      const item = document.createElement('article');
+      item.className = 'history-item';
+      const title = document.createElement('strong');
+      title.textContent = `${dollars(deposit.amount)} · ${deposit.kind === 'first' ? 'FD' : 'RD'}`;
+      const date = document.createElement('p');
+      date.className = 'muted';
+      date.textContent = new Date(deposit.occurred_at).toLocaleString('ru-RU');
+      item.append(title, date);
+      depositsRoot.append(item);
+    });
+  }
+
+  const diaryRoot = $('#diary-history');
+  diaryRoot.replaceChildren();
+  if (!state.diaryHistory.length) {
+    diaryRoot.append(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Записей пока нет.' }));
+  } else {
+    state.diaryHistory.forEach((entry) => {
+      const item = document.createElement('article');
+      item.className = 'history-item';
+      const title = document.createElement('strong');
+      title.textContent = `${entry.entry_day} · настроение ${entry.mood}/5`;
+      const details = document.createElement('p');
+      details.className = 'muted';
+      details.textContent = `Прибыльных: ${entry.profitable_trades}; убыточных: ${entry.losing_trades}.`;
+      item.append(title, details);
+      diaryRoot.append(item);
+    });
+  }
 };
 
 const productAction = (product) => {
@@ -270,7 +443,9 @@ const renderAll = () => {
   renderProfile();
   renderDiary();
   renderSignalControls();
+  renderSignalHistory();
   renderProducts();
+  renderProfileCollections();
   renderNotifications();
 };
 
@@ -281,6 +456,7 @@ const refreshProfileAndProducts = async () => {
   renderHome();
   renderProfile();
   renderProducts();
+  renderProfileCollections();
 };
 
 const generateSignal = async () => {
@@ -299,8 +475,11 @@ const generateSignal = async () => {
     $('#signal-probability').textContent = `${signal.probability}%`;
     $('#signal-asset').textContent = `${signal.asset_label} · ${timeframeLabel(signal.timeframe_seconds)}`;
     $('#signal-result').hidden = false;
-    state.availability = await api('/api/signals/availability');
+    const [availability, signals] = await Promise.all([api('/api/signals/availability'), api('/api/signals')]);
+    state.availability = availability;
+    state.signals = signals.signals;
     renderSignalControls();
+    renderSignalHistory();
   } catch (error) {
     try {
       state.availability = await api('/api/signals/availability');
@@ -325,7 +504,9 @@ const saveDiary = async () => {
       }),
     });
     $('#diary-notice').textContent = state.diary.reward_granted ? 'Дневник сохранён. За серию начислено 5 PAC.' : 'Дневник сохранён.';
+    state.diaryHistory = (await api('/api/me/diary/history')).entries;
     renderDiary();
+    renderProfileCollections();
   } catch (error) {
     $('#diary-notice').textContent = error.message;
   } finally {
@@ -420,20 +601,26 @@ const bootstrap = async () => {
     return;
   }
   try {
-    const [profile, diary, notifications, products, assets, availability] = await Promise.all([
+    const [profile, diary, diaryHistory, deposits, notifications, products, assets, availability, signals] = await Promise.all([
       api('/api/me'),
       api('/api/me/diary'),
+      api('/api/me/diary/history'),
+      api('/api/me/deposits'),
       api('/api/me/notifications'),
       api('/api/products'),
       api('/api/signals/assets'),
       api('/api/signals/availability'),
+      api('/api/signals'),
     ]);
     state.profile = profile;
     state.diary = diary;
+    state.diaryHistory = diaryHistory.entries;
+    state.deposits = deposits.deposits;
     state.notifications = notifications.notifications;
     state.products = products.products;
     state.assets = assets.assets;
     state.availability = availability;
+    state.signals = signals.signals;
     state.selectedAssetId = state.assets[0]?.id || null;
     renderAll();
     if (profile.is_blocked) {

@@ -5,6 +5,9 @@ from fastapi import APIRouter, Depends
 from api.schemas import (
     DiaryEntryRequest,
     DiaryEntryResponse,
+    DiaryEntryListResponse,
+    DepositListResponse,
+    DepositResponse,
     MarkNotificationsReadResponse,
     NotificationListResponse,
     NotificationResponse,
@@ -91,6 +94,37 @@ async def save_today_diary(
     )
     await context.uow.commit()
     return _diary_response(result.entry, reward_granted=result.reward_granted)
+
+
+@router.get("/diary/history", response_model=DiaryEntryListResponse)
+async def get_diary_history(
+    context: WebAppContext = Depends(get_webapp_context),
+) -> DiaryEntryListResponse:
+    entries = await context.uow.engagement.list_diary_entries(
+        user_id=context.user.id,
+        limit=30,
+    )
+    return DiaryEntryListResponse(entries=[_diary_response(entry) for entry in entries])
+
+
+@router.get("/deposits", response_model=DepositListResponse)
+async def get_recent_deposits(
+    context: WebAppContext = Depends(get_webapp_context),
+) -> DepositListResponse:
+    deposits = await context.uow.finance.list_recent_deposits(
+        user_id=context.user.id,
+        limit=20,
+    )
+    return DepositListResponse(
+        deposits=[
+            DepositResponse(
+                amount=deposit.amount,
+                kind=deposit.kind,
+                occurred_at=deposit.occurred_at,
+            )
+            for deposit in deposits
+        ]
+    )
 
 
 @router.get("/notifications", response_model=NotificationListResponse)

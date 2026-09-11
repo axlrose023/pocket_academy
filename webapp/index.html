@@ -29,13 +29,10 @@
         </article>
         <section class="section">
           <div class="section-heading"><h2>Твой путь</h2></div>
-          <ol class="steps">
-            <li class="step"><span>1</span><div><strong>Регистрация</strong><p>Открой торговый аккаунт Pocket Option по партнёрской ссылке.</p><span class="text-note">Ссылка появится после настройки интеграции.</span></div></li>
-            <li class="step"><span>2</span><div><strong>Первый депозит</strong><p>Пополнение открывает сигналы и начисляет PAC.</p></div></li>
-            <li class="step"><span>3</span><div><strong>Поддержка</strong><p>Менеджер становится доступен после первого депозита.</p></div></li>
-          </ol>
+          <ol class="steps" id="journey-steps"></ol>
         </section>
         <article class="hint-card">Заполни дневник два дня подряд в профиле и получи <strong>5 PAC</strong>.</article>
+        <section class="section"><div class="section-heading"><h2>Витрина Academy</h2><span class="muted">Оплата только PAC</span></div><div id="home-product-list"></div></section>
       </section>
 
       <section class="screen" data-screen="signals">
@@ -54,6 +51,7 @@
           <div class="signal-main"><strong id="signal-direction">—</strong><span id="signal-probability">—</span></div>
           <p id="signal-asset">—</p>
         </article>
+        <section class="section"><div class="section-heading"><h3>Последние сигналы</h3></div><div id="signal-history"><p class="muted">Сигналов пока нет.</p></div></section>
       </section>
 
       <section class="screen" data-screen="academy">
@@ -70,6 +68,8 @@
       <section class="screen" data-screen="profile">
         <div class="profile-head"><div class="avatar" id="profile-initial">—</div><div><h2 id="profile-name">Загрузка…</h2><p class="muted" id="profile-meta">—</p></div></div>
         <article class="status-tree"><h3>Статусы</h3><div id="status-list"></div></article>
+        <section class="profile-section"><div class="section-heading"><h3>Мои продукты</h3></div><div id="my-product-list"><p class="muted">Загружаем доступы…</p></div></section>
+        <section class="profile-section"><div class="section-heading"><h3>Последние депозиты</h3></div><div id="deposit-history"><p class="muted">Депозитов пока нет.</p></div></section>
         <section class="diary">
           <div class="section-heading"><h3>Дневник трейдера</h3><span class="muted">Сегодня (UTC)</span></div>
           <div class="field-grid"><label>Прибыльные<input id="profitable-trades" inputmode="numeric" type="number" min="0" value="0" /></label><label>Убыточные<input id="losing-trades" inputmode="numeric" type="number" min="0" value="0" /></label></div>
@@ -78,6 +78,7 @@
           <button class="primary-button" id="diary-button" data-action="diary">Сохранить дневник</button>
           <p class="muted" id="diary-notice"></p>
         </section>
+        <section class="profile-section"><div class="section-heading"><h3>История дневника</h3></div><div id="diary-history"><p class="muted">Записей пока нет.</p></div></section>
       </section>
     </main>
 
