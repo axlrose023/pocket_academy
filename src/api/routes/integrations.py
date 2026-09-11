@@ -23,8 +23,15 @@ from services.external_events import ChatterfyLead
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
 
-@router.api_route(
-    "/chatterfy/leads", methods=["GET", "POST"], response_model=AcceptedEventResponse
+@router.get(
+    "/chatterfy/leads",
+    response_model=AcceptedEventResponse,
+    operation_id="receive_chatterfy_lead_get",
+)
+@router.post(
+    "/chatterfy/leads",
+    response_model=AcceptedEventResponse,
+    operation_id="receive_chatterfy_lead_post",
 )
 @inject
 async def receive_chatterfy_lead(
@@ -61,10 +68,15 @@ async def receive_chatterfy_lead(
     return AcceptedEventResponse(accepted=True, duplicate=not created)
 
 
-@router.api_route(
+@router.get(
     "/pocket-option/events",
-    methods=["GET", "POST"],
     response_model=AcceptedEventResponse,
+    operation_id="receive_pocket_option_event_get",
+)
+@router.post(
+    "/pocket-option/events",
+    response_model=AcceptedEventResponse,
+    operation_id="receive_pocket_option_event_post",
 )
 @inject
 async def receive_pocket_option_event(

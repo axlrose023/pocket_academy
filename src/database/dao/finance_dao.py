@@ -1,11 +1,18 @@
 import datetime
 import uuid
+from dataclasses import dataclass
 from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import BrokerAccount, Deposit, Withdrawal
+
+
+@dataclass(frozen=True, slots=True)
+class WithdrawalUpsertResult:
+    withdrawal: Withdrawal
+    was_applied: bool
 
 
 class FinanceDAO:
@@ -135,7 +142,7 @@ class FinanceDAO:
         status: str,
         requested_at: datetime.datetime,
         resolved_at: datetime.datetime | None,
-    ) -> Withdrawal:
+    ) -> WithdrawalUpsertResult:
         withdrawal = await self._session.scalar(
             select(Withdrawal).where(
                 Withdrawal.provider == provider,
@@ -155,19 +162,19 @@ class FinanceDAO:
                 resolved_at=resolved_at,
             )
             self._session.add(withdrawal)
-            return withdrawal
+            return WithdrawalUpsertResult(withdrawal=withdrawal, was_applied=True)
         if requested_at < withdrawal.requested_at:
-            return withdrawal
+            return WithdrawalUpsertResult(withdrawal=withdrawal, was_applied=False)
         if requested_at == withdrawal.requested_at and _withdrawal_status_rank(
             status
         ) <= _withdrawal_status_rank(withdrawal.status):
-            return withdrawal
+            return WithdrawalUpsertResult(withdrawal=withdrawal, was_applied=False)
         withdrawal.last_external_event_id = external_event_id
         withdrawal.amount = amount
         withdrawal.status = status
         withdrawal.requested_at = requested_at
         withdrawal.resolved_at = resolved_at
-        return withdrawal
+        return WithdrawalUpsertResult(withdrawal=withdrawal, was_applied=True)
 
 
 def _withdrawal_status_rank(status: str) -> int:

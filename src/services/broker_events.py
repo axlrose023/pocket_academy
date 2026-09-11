@@ -182,9 +182,7 @@ class BrokerEventService:
         if user is None:
             raise BrokerEventError("Unknown user")
         access_before = await self._access_service.snapshot(uow, user=user)
-        if withdrawal.status != WithdrawalStatus.CANCELLED:
-            user.is_manually_unblocked = False
-        await uow.finance.upsert_withdrawal(
+        upsert_result = await uow.finance.upsert_withdrawal(
             user_id=account.user_id,
             broker_account_id=account.id,
             external_event_id=event.id,
@@ -199,6 +197,11 @@ class BrokerEventService:
                 else None
             ),
         )
+        if (
+            upsert_result.was_applied
+            and withdrawal.status != WithdrawalStatus.CANCELLED
+        ):
+            user.is_manually_unblocked = False
         access_after = await self._access_service.snapshot(uow, user=user)
         await self._notify_access_change(
             uow,
