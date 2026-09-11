@@ -1,6 +1,7 @@
 import datetime
 
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import AttributionClick
@@ -36,3 +37,8 @@ class AttributionDAO:
             },
         ).returning(AttributionClick)
         return (await self._session.execute(statement)).scalar_one()
+
+    async def get_by_click_id(self, click_id: str) -> AttributionClick | None:
+        return await self._session.scalar(
+            select(AttributionClick).where(AttributionClick.click_id == click_id)
+        )

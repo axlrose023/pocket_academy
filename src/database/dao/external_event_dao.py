@@ -48,3 +48,6 @@ class ExternalEventDAO:
         if existing is None:
             raise RuntimeError("External event was not persisted")
         return existing, False
+
+    async def mark_processed(self, event: ExternalEvent) -> None:
+        event.processing_status = "processed"

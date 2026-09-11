@@ -10,12 +10,18 @@ from database.engine import SessionFactory
 from database.uow import UnitOfWork
 from domain.clock import Clock, SystemClock
 from services import (
+    BrokerEventService,
     ChatterfyService,
+    DiaryService,
     ExternalEventService,
     PocketOptionEventParser,
+    ProductService,
+    SignalService,
     TelegramWebAppAuthService,
     UserService,
 )
+from services.access import AccessService
+from domain.randomizer import SignalRandomizer
 
 
 class AppProvider(Provider):
@@ -75,6 +81,34 @@ class AppProvider(Provider):
     @provide(scope=Scope.APP)
     def pocket_option_event_parser(self) -> PocketOptionEventParser:
         return PocketOptionEventParser()
+
+    @provide(scope=Scope.APP)
+    def access_service(self) -> AccessService:
+        return AccessService()
+
+    @provide(scope=Scope.APP)
+    def signal_randomizer(self) -> SignalRandomizer:
+        return SignalRandomizer()
+
+    @provide(scope=Scope.APP)
+    def signal_service(
+        self, clock: Clock, randomizer: SignalRandomizer, access_service: AccessService
+    ) -> SignalService:
+        return SignalService(clock, randomizer, access_service)
+
+    @provide(scope=Scope.APP)
+    def product_service(self) -> ProductService:
+        return ProductService()
+
+    @provide(scope=Scope.APP)
+    def diary_service(self) -> DiaryService:
+        return DiaryService()
+
+    @provide(scope=Scope.APP)
+    def broker_event_service(
+        self, product_service: ProductService
+    ) -> BrokerEventService:
+        return BrokerEventService(product_service)
 
 
 def get_async_container(
