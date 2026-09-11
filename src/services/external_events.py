@@ -53,6 +53,28 @@ class ExternalEventService:
             received_at=self._clock.now(),
         )
 
+    async def record_rejected(
+        self,
+        uow: UnitOfWork,
+        *,
+        provider: ExternalProvider,
+        payload: dict[str, Any],
+        reason: str,
+    ) -> bool:
+        event, created = await self.record(
+            uow,
+            provider=provider,
+            event_type=ExternalEventType.UNKNOWN,
+            payload=payload,
+            source_event_id=None,
+        )
+        await uow.external_events.mark_rejected(
+            event,
+            rejected_at=self._clock.now(),
+            reason=reason,
+        )
+        return created
+
 
 @dataclass(frozen=True, slots=True)
 class ChatterfyLead:

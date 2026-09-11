@@ -7,6 +7,7 @@ class ExternalProvider(StrEnum):
 
 
 class ExternalEventType(StrEnum):
+    UNKNOWN = "unknown"
     LEAD = "lead"
     REGISTRATION = "registration"
     FIRST_DEPOSIT = "first_deposit"

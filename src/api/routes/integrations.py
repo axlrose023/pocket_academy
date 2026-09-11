@@ -92,6 +92,13 @@ async def receive_pocket_option_event(
     try:
         postback = parser.parse(payload)
     except UnsupportedExternalEventError as error:
+        await event_service.record_rejected(
+            uow,
+            provider=ExternalProvider.POCKET_OPTION,
+            payload=payload,
+            reason=str(error),
+        )
+        await uow.commit()
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Unsupported Pocket Option event",

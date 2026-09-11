@@ -35,11 +35,12 @@ Source: [Chatterfy outgoing Webhook](https://docs.chatterfy.ai/en/crm/tracking/w
 - Chatterfy's Custom Postback reference identifies `sale` as a first deposit
   and `resale` as a repeat deposit. The receiver accepts these aliases along
   with the canonical `fd` and `rd` values.
-- The implementation records every accepted raw postback before processing it,
-  stores its normalized fields alongside the original payload, and retries
-  events that arrive before their Chatterfy attribution or broker registration.
-  A duplicate event is identified by the provider event ID when supplied;
-  otherwise a fingerprint of its complete payload is used.
+- The implementation records every raw postback before processing it, stores
+  normalized fields alongside valid payloads, and records unsupported payloads
+  as rejected with their reason. It retries valid events that arrive before
+  their Chatterfy attribution or broker registration. A duplicate event is
+  identified by the provider event ID when supplied; otherwise a fingerprint
+  of its complete payload is used.
 
 ### Canonical receiver contract
 

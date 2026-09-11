@@ -56,6 +56,17 @@ class ExternalEventDAO:
         event.processed_at = processed_at
         event.rejection_reason = None
 
+    async def mark_rejected(
+        self,
+        event: ExternalEvent,
+        *,
+        rejected_at: datetime.datetime,
+        reason: str,
+    ) -> None:
+        event.processing_status = "rejected"
+        event.processed_at = rejected_at
+        event.rejection_reason = reason
+
     async def list_received_pocket_option_events(
         self,
         *,
