@@ -3,7 +3,7 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import BrokerAccount, Deposit, Withdrawal
@@ -13,6 +13,12 @@ from database.models import BrokerAccount, Deposit, Withdrawal
 class WithdrawalUpsertResult:
     withdrawal: Withdrawal
     was_applied: bool
+
+
+@dataclass(frozen=True, slots=True)
+class WithdrawalCoverage:
+    withdrawal: Withdrawal
+    deposits_after: Decimal
 
 
 class FinanceDAO:
@@ -86,28 +92,31 @@ class FinanceDAO:
         self._session.add(account)
         return account
 
-    async def deposits_after(
-        self, user_id: uuid.UUID, occurred_at: datetime.datetime
-    ) -> Decimal:
-        amount = await self._session.scalar(
-            select(func.coalesce(func.sum(Deposit.amount), 0)).where(
-                Deposit.user_id == user_id,
-                Deposit.occurred_at >= occurred_at,
+    async def unresolved_withdrawal_coverages(
+        self, user_id: uuid.UUID
+    ) -> list[WithdrawalCoverage]:
+        rows = await self._session.execute(
+            select(
+                Withdrawal,
+                func.coalesce(func.sum(Deposit.amount), 0).label("deposits_after"),
             )
+            .outerjoin(
+                Deposit,
+                and_(
+                    Deposit.user_id == Withdrawal.user_id,
+                    Deposit.occurred_at >= Withdrawal.requested_at,
+                ),
+            )
+            .where(
+                Withdrawal.user_id == user_id,
+                Withdrawal.status.in_(("new", "success")),
+            )
+            .group_by(Withdrawal.id)
         )
-        return Decimal(amount)
-
-    async def unresolved_withdrawals(self, user_id: uuid.UUID) -> list[Withdrawal]:
-        return list(
-            (
-                await self._session.scalars(
-                    select(Withdrawal).where(
-                        Withdrawal.user_id == user_id,
-                        Withdrawal.status.in_(("new", "success")),
-                    )
-                )
-            ).all()
-        )
+        return [
+            WithdrawalCoverage(withdrawal=withdrawal, deposits_after=Decimal(amount))
+            for withdrawal, amount in rows
+        ]
 
     async def add_deposit(
         self,
