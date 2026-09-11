@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from dishka.integrations.fastapi import setup_dishka
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from api.routes import api_router
 from config import Config, get_config
@@ -32,6 +33,11 @@ def create_app(config: Config | None = None) -> FastAPI:
     )
     application.state.config = resolved_config
     application.include_router(api_router, prefix="/api")
+    application.mount(
+        "/app",
+        StaticFiles(directory=resolved_config.root_path / "webapp", html=True),
+        name="webapp",
+    )
     setup_dishka(container=container, app=application)
     return application
 

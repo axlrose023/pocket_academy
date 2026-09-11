@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#10131e" />
+    <title>Pocket Academy</title>
+    <link rel="stylesheet" href="/app/styles.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div><p class="eyebrow">POCKET ACADEMY</p><h1 id="welcome-name">Трейдер</h1></div>
+        <button class="icon-button" aria-label="Уведомления" data-action="notifications">●</button>
+      </header>
+
+      <section class="screen is-active" data-screen="home">
+        <article class="status-card"><p class="muted">Текущий статус</p><div class="status-line"><strong>Novice</strong><span>0 PAC</span></div><div class="progress"><span></span></div><p class="muted">До Trader: $50 депозитов</p></article>
+        <section class="section"><div class="section-heading"><h2>Твой путь</h2></div><ol class="steps"><li class="step"><span>1</span><div><strong>Регистрация</strong><p>Открой торговый аккаунт Pocket Option.</p><button class="text-button">Зарегистрироваться</button></div></li><li class="step"><span>2</span><div><strong>Первый депозит</strong><p>Пополнение открывает сигналы и PAC.</p></div></li><li class="step"><span>3</span><div><strong>Поддержка</strong><p>Менеджер доступен после первого депозита.</p></div></li></ol></section>
+        <article class="hint-card">Заполни дневник два дня подряд в профиле и получи <strong>5 PAC</strong>.</article>
+      </section>
+
+      <section class="screen" data-screen="signals">
+        <div class="section-heading"><div><p class="eyebrow">СИГНАЛЫ</p><h2>Выбери рынок</h2></div><span class="pill">0 / 8</span></div>
+        <div class="chip-row" data-select="asset"><button class="chip is-selected">EUR/USD</button><button class="chip">GBP/USD</button><button class="chip">USD/JPY</button><button class="chip">EUR/CHF</button></div>
+        <h3>Таймфрейм</h3><div class="chip-row" data-select="timeframe"><button class="chip is-selected">20м</button><button class="chip">25м</button><button class="chip">30м</button><button class="chip">1ч</button></div>
+        <button class="primary-button" data-action="signal">Получить сигнал</button>
+        <article class="signal-card" id="signal-result" hidden><p class="muted">НОВЫЙ СИГНАЛ</p><div class="signal-main"><strong id="signal-direction">BUY</strong><span id="signal-probability">72%</span></div><p id="signal-asset">EUR/USD · 20 мин</p></article>
+      </section>
+
+      <section class="screen" data-screen="academy">
+        <div class="section-heading"><div><p class="eyebrow">ACADEMY</p><h2>Обучение</h2></div></div>
+        <div class="chip-row"><button class="chip is-selected">Все</button><button class="chip">Курсы</button><button class="chip">Модули</button><button class="chip">Группы</button></div>
+        <article class="product-card"><span class="product-mark">01</span><div><h3>Базовый старт</h3><p>Бесплатный материал для первых сделок.</p></div><button class="secondary-button">Открыть</button></article>
+        <article class="product-card"><span class="product-mark">02</span><div><h3>Управление риском</h3><p>Практический модуль.</p></div><button class="secondary-button">40 PAC</button></article>
+      </section>
+
+      <section class="screen" data-screen="profile">
+        <div class="profile-head"><div class="avatar" id="profile-initial">T</div><div><h2 id="profile-name">Трейдер</h2><p class="muted">Novice · $0 депозитов</p></div></div>
+        <article class="status-tree"><h3>Статусы</h3><p class="is-current">● Novice</p><p>○ Trader</p><p>○ Professional</p><p>○ Expert</p><p>○ Master</p><p>○ Legend</p></article>
+        <section class="diary"><div class="section-heading"><h3>Дневник трейдера</h3><span class="muted">Сегодня</span></div><div class="field-grid"><label>Прибыльные<input inputmode="numeric" type="number" min="0" value="0" /></label><label>Убыточные<input inputmode="numeric" type="number" min="0" value="0" /></label></div><div class="moods"><button>🔴</button><button>🟠</button><button>🟡</button><button>🟢</button><button>🟩</button></div><textarea placeholder="Комментарий к дню (необязательно)"></textarea><button class="primary-button">Сохранить дневник</button></section>
+      </section>
+    </main>
+    <nav class="tabbar" aria-label="Навигация"><button class="tab is-active" data-tab="home">Главная</button><button class="tab" data-tab="signals">Сигналы</button><button class="tab" data-tab="academy">Academy</button><button class="tab" data-tab="profile">Профиль</button></nav>
+    <script src="/app/app.js"></script>
+  </body>
+</html>
