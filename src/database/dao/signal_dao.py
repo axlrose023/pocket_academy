@@ -19,6 +19,29 @@ class SignalDAO:
             )
         )
 
+    async def list_active_assets(self) -> list[SignalAsset]:
+        return list(
+            (
+                await self._session.scalars(
+                    select(SignalAsset)
+                    .where(SignalAsset.is_active.is_(True))
+                    .order_by(SignalAsset.sort_order, SignalAsset.label)
+                )
+            ).all()
+        )
+
+    async def list_recent(self, *, user_id: uuid.UUID, limit: int) -> list[Signal]:
+        return list(
+            (
+                await self._session.scalars(
+                    select(Signal)
+                    .where(Signal.user_id == user_id)
+                    .order_by(Signal.requested_at.desc())
+                    .limit(limit)
+                )
+            ).all()
+        )
+
     async def last_requested_at(
         self, user_id: uuid.UUID, *, premium: bool
     ) -> datetime.datetime | None:

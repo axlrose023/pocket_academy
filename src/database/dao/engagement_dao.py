@@ -1,7 +1,7 @@
 import datetime
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,6 +54,16 @@ class EngagementDAO:
             is not None
         )
 
+    async def get_diary_entry(
+        self, *, user_id: uuid.UUID, entry_day: datetime.date
+    ) -> DiaryEntry | None:
+        return await self._session.scalar(
+            select(DiaryEntry).where(
+                DiaryEntry.user_id == user_id,
+                DiaryEntry.entry_day == entry_day,
+            )
+        )
+
     async def add_notification(
         self,
         *,
@@ -70,3 +80,30 @@ class EngagementDAO:
         )
         self._session.add(notification)
         return notification
+
+    async def list_notifications(
+        self, *, user_id: uuid.UUID, limit: int
+    ) -> list[Notification]:
+        return list(
+            (
+                await self._session.scalars(
+                    select(Notification)
+                    .where(Notification.user_id == user_id)
+                    .order_by(Notification.created_at.desc())
+                    .limit(limit)
+                )
+            ).all()
+        )
+
+    async def mark_notifications_read(
+        self, *, user_id: uuid.UUID, read_at: datetime.datetime
+    ) -> int:
+        result = await self._session.execute(
+            update(Notification)
+            .where(
+                Notification.user_id == user_id,
+                Notification.read_at.is_(None),
+            )
+            .values(read_at=read_at)
+        )
+        return int(result.rowcount or 0)

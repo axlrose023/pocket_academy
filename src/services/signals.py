@@ -1,13 +1,14 @@
 import datetime
 import uuid
 from dataclasses import dataclass
+from decimal import Decimal
 
 from database.models import Signal, User
 from database.uow import UnitOfWork
 from domain.clock import Clock
 from domain.randomizer import SignalRandomizer
 from domain.statuses import allowed_timeframes
-from services.access import AccessService
+from services.access import AccessService, UserAccessSnapshot
 
 
 class SignalRuleError(ValueError):
@@ -19,6 +20,15 @@ class SignalAvailability:
     used: int
     limit: int | None
     next_available_at: datetime.datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class UserSignalOverview:
+    access: UserAccessSnapshot
+    standard: SignalAvailability
+    premium: SignalAvailability
+    premium_minimum_deposit: Decimal
+    is_premium_available: bool
 
 
 class SignalService:
@@ -41,24 +51,13 @@ class SignalService:
         user = await uow.session.get(User, user_id)
         if user is None:
             raise SignalRuleError("User not found")
-        access = await self._access_service.snapshot(uow, user=user)
-        if access.is_blocked:
+        overview = await self.overview(uow, user=user)
+        if overview.access.is_blocked:
             raise SignalRuleError("Access is blocked")
-        if timeframe_seconds not in allowed_timeframes(access.status_policy):
+        if timeframe_seconds not in allowed_timeframes(overview.access.status_policy):
             raise SignalRuleError("Timeframe is not available")
         now = self._clock.now()
-        settings = await uow.settings.get_or_create()
-        availability = await self.availability(
-            uow,
-            user_id=user_id,
-            premium=premium,
-            daily_limit=(
-                settings.premium_daily_limit
-                if premium
-                else access.status_policy.daily_signal_limit
-            ),
-            wait_seconds=5 if premium else access.status_policy.signal_wait_seconds,
-        )
+        availability = overview.premium if premium else overview.standard
         if availability.limit is not None and availability.used >= availability.limit:
             raise SignalRuleError("Daily signal limit reached")
         if availability.next_available_at and availability.next_available_at > now:
@@ -66,19 +65,45 @@ class SignalService:
         asset = await uow.signals.get_active_asset(asset_id)
         if asset is None:
             raise SignalRuleError("Signal asset is unavailable")
-        if premium:
-            if access.total_deposits < settings.premium_minimum_deposit:
-                raise SignalRuleError("Premium signal requires a larger deposit")
+        if premium and not overview.is_premium_available:
+            raise SignalRuleError("Premium signal requires a larger deposit")
         return await uow.signals.add(
             user_id=user_id,
             asset=asset,
             timeframe_seconds=timeframe_seconds,
             direction=self._randomizer.direction().value,
             probability=self._randomizer.probability(
-                access.status_policy, premium=premium
+                overview.access.status_policy, premium=premium
             ),
             premium=premium,
             requested_at=now,
+        )
+
+    async def overview(self, uow: UnitOfWork, *, user: User) -> UserSignalOverview:
+        access = await self._access_service.snapshot(uow, user=user)
+        settings = await uow.settings.get_or_create()
+        standard = await self.availability(
+            uow,
+            user_id=user.id,
+            premium=False,
+            daily_limit=access.status_policy.daily_signal_limit,
+            wait_seconds=access.status_policy.signal_wait_seconds,
+        )
+        premium = await self.availability(
+            uow,
+            user_id=user.id,
+            premium=True,
+            daily_limit=settings.premium_daily_limit,
+            wait_seconds=5,
+        )
+        return UserSignalOverview(
+            access=access,
+            standard=standard,
+            premium=premium,
+            premium_minimum_deposit=settings.premium_minimum_deposit,
+            is_premium_available=(
+                access.total_deposits >= settings.premium_minimum_deposit
+            ),
         )
 
     async def availability(

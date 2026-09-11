@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import Product, UserProductAccess
@@ -17,6 +17,20 @@ class ProductDAO:
                 Product.id == product_id, Product.is_published.is_(True)
             )
         )
+
+    async def list_published_with_access(
+        self, *, user_id: uuid.UUID
+    ) -> list[tuple[Product, bool]]:
+        access_exists = exists().where(
+            UserProductAccess.user_id == user_id,
+            UserProductAccess.product_id == Product.id,
+        )
+        rows = await self._session.execute(
+            select(Product, access_exists.label("has_access"))
+            .where(Product.is_published.is_(True))
+            .order_by(Product.sort_order, Product.created_at)
+        )
+        return [(product, bool(has_access)) for product, has_access in rows]
 
     async def has_access(self, *, user_id: uuid.UUID, product_id: uuid.UUID) -> bool:
         return (
