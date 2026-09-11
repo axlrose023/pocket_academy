@@ -1,14 +1,12 @@
-import logging
-
 from dishka.integrations.taskiq import setup_dishka
 from taskiq import SimpleRetryMiddleware
 from taskiq_redis import RedisAsyncResultBackend, ListQueueBroker
 
 from config import get_config
 from dependencies import get_async_container
+from utils import setup_logging
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+setup_logging()
 config = get_config()
 
 redis_async_result = RedisAsyncResultBackend(

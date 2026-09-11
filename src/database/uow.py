@@ -2,16 +2,22 @@ from typing import Self, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from database.dao.attribution_dao import AttributionDAO
+from database.dao.external_event_dao import ExternalEventDAO
 from database.dao.user_dao import UserDAO
 
 
 class UnitOfWork:
     session: AsyncSession
     users: UserDAO
+    attribution: AttributionDAO
+    external_events: ExternalEventDAO
 
     def __init__(self: Self, session: AsyncSession):
         self.session = session
         self.users = UserDAO(session)
+        self.attribution = AttributionDAO(session)
+        self.external_events = ExternalEventDAO(session)
 
     async def commit(self: Self):
         await self.session.commit()

@@ -36,7 +36,8 @@ services:
 
   taskiq-worker:
     <<: *bot
-    command: [uv, run, --no-sync, taskiq, worker, -fsd, src.tskiq.broker:broker, -w, "1", --max-fails, "1"]
+    command:
+      ["uv", "run", "--no-sync", "taskiq", "worker", "tskiq.broker:broker", "tskiq.tasks", "--workers", "1", "--max-fails", "1"]
 
   db:
     image: postgres:15

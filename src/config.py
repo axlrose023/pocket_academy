@@ -72,6 +72,12 @@ class ApiConfig(BaseModel):
     public_base_url: str | None = None
 
 
+class IntegrationConfig(BaseModel):
+    chatterfy_webhook_secret: SecretStr | None = None
+    pocket_option_webhook_secret: SecretStr | None = None
+    telegram_init_data_max_age_seconds: int = 86_400
+
+
 @final
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
@@ -87,6 +93,7 @@ class Config(BaseSettings):
     postgres: PostgresConfig = Field(default_factory=PostgresConfig)
     redis: RedisConfig = Field(default_factory=RedisConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
+    integrations: IntegrationConfig = Field(default_factory=IntegrationConfig)
 
 
 @lru_cache
