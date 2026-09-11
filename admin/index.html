@@ -1,1 +1,72 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pocket Academy Admin</title><style>body{margin:0;background:#10131e;color:#f4f7fb;font:15px Arial;padding:32px}main{max-width:1080px;margin:auto}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.card{background:#1a2030;border:1px solid #2c354a;border-radius:16px;padding:18px}.number{font-size:28px;color:#ff7b39;font-weight:bold}button{background:#ff7b39;color:#fff;border:0;border-radius:9px;padding:10px 12px}table{width:100%;border-collapse:collapse;margin-top:18px}td,th{padding:12px;text-align:left;border-bottom:1px solid #2c354a;color:#9aa5b8}th{color:#f4f7fb}h1{margin:0 0 5px}p{color:#9aa5b8}.actions{display:flex;gap:10px;flex-wrap:wrap}</style></head><body><main><p>POCKET ACADEMY / ADMIN</p><h1>Операционная панель</h1><div class="grid"><article class="card"><p>Регистрации</p><div class="number">—</div></article><article class="card"><p>FD / RD</p><div class="number">—</div></article><article class="card"><p>Сигналы сегодня</p><div class="number">—</div></article><article class="card"><p>Активные пользователи</p><div class="number">—</div></article></div><h2>Управление</h2><div class="actions"><button>Пользователи</button><button>Продукты</button><button>Валютные пары</button><button>Premium-сигналы</button></div><h2>Последние события</h2><table><thead><tr><th>Время</th><th>Событие</th><th>Пользователь</th><th>Статус</th></tr></thead><tbody><tr><td>—</td><td>Данные появятся после подключения postback</td><td>—</td><td>—</td></tr></tbody></table></main></body></html>
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#10131e" />
+    <title>Pocket Academy Admin</title>
+    <link rel="stylesheet" href="/admin/styles.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <main class="admin-shell">
+      <header class="page-header"><div><p class="eyebrow">POCKET ACADEMY / ADMIN</p><h1>Операционная панель</h1></div><p class="muted">Доступ для администраторов</p></header>
+
+      <section class="panel">
+        <form class="date-filter" id="dashboard-filter"><label>С<input id="date-from" type="date" required /></label><label>По<input id="date-to" type="date" required /></label><button type="submit">Обновить</button></form>
+        <p class="muted" id="dashboard-period">Загрузка отчёта…</p>
+        <div class="metrics-grid">
+          <article class="metric"><p>Регистрации</p><strong data-metric="registrations">—</strong></article>
+          <article class="metric"><p>FD</p><strong data-metric="first-deposits">—</strong><span data-metric="first-deposit-amount">—</span></article>
+          <article class="metric"><p>RD</p><strong data-metric="repeat-deposits">—</strong><span data-metric="repeat-deposit-amount">—</span></article>
+          <article class="metric"><p>Сигналы</p><strong data-metric="signals">—</strong></article>
+          <article class="metric"><p>Дневники</p><strong data-metric="diary-entries">—</strong></article>
+          <article class="metric"><p>Активные пользователи</p><strong data-metric="active-users">—</strong></article>
+          <article class="metric"><p>Регистрация → FD</p><strong data-metric="registration-fd-rate">—</strong></article>
+          <article class="metric"><p>FD → RD</p><strong data-metric="fd-rd-rate">—</strong></article>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Пользователь</h2>
+        <form class="inline-form" id="user-search"><input id="user-identifier" placeholder="Telegram ID или @username" required /><button type="submit">Найти</button></form>
+        <div id="user-result"><p class="muted">Введи Telegram ID или username, чтобы посмотреть доступ пользователя.</p></div>
+      </section>
+
+      <section class="management-grid">
+        <article class="panel">
+          <div class="section-heading"><h2>Товары Academy</h2><button class="ghost-button" id="cancel-product-edit" hidden>Отмена</button></div>
+          <form class="editor" id="product-editor">
+            <label>Название<input name="title" maxlength="255" required /></label>
+            <label>Описание<textarea name="description"></textarea></label>
+            <div class="form-grid"><label>Тип<select name="product_type"><option value="course">Курс</option><option value="module">Модуль</option><option value="group">Группа</option><option value="bot">Бот</option></select></label><label>Цена, PAC<input name="price_pac" type="number" min="0" step="0.01" /></label></div>
+            <div class="form-grid"><label>Условие<select name="grant_condition"><option value="none">Покупка</option><option value="registration">Регистрация</option><option value="deposit_threshold">Депозит</option></select></label><label>Порог депозита<input name="grant_deposit_threshold" type="number" min="0" step="0.01" /></label></div>
+            <label>URL материала<input name="external_url" type="url" maxlength="2000" /></label>
+            <div class="form-grid"><label>Порядок<input name="sort_order" type="number" min="0" value="0" /></label><label class="check"><input name="is_published" type="checkbox" checked /> Опубликован</label></div>
+            <button type="submit" id="product-submit">Создать товар</button>
+          </form>
+          <div class="table-wrap"><table><thead><tr><th>Товар</th><th>Доступ</th><th></th></tr></thead><tbody id="product-list"></tbody></table></div>
+        </article>
+
+        <article class="panel">
+          <div class="section-heading"><h2>Валютные пары</h2><button class="ghost-button" id="cancel-asset-edit" hidden>Отмена</button></div>
+          <form class="editor" id="asset-editor">
+            <div class="form-grid"><label>Ключ пары<input name="asset_key" maxlength="64" placeholder="EUR/USD" required /></label><label>Отображение<input name="label" maxlength="128" placeholder="EUR/USD" required /></label></div>
+            <div class="form-grid"><label>Категория<input name="category" maxlength="64" value="forex" required /></label><label>Порядок<input name="sort_order" type="number" min="0" value="0" /></label></div>
+            <div class="check-row"><label class="check"><input name="is_otc" type="checkbox" /> OTC</label><label class="check"><input name="is_popular" type="checkbox" /> Популярная</label><label class="check" id="asset-active-field" hidden><input name="is_active" type="checkbox" checked /> Активна</label></div>
+            <button type="submit" id="asset-submit">Добавить пару</button>
+          </form>
+          <div class="table-wrap"><table><thead><tr><th>Пара</th><th>Категория</th><th></th></tr></thead><tbody id="asset-list"></tbody></table></div>
+        </article>
+      </section>
+
+      <section class="panel settings-panel">
+        <h2>Настройки сигналов и менеджера</h2>
+        <form class="editor" id="settings-editor"><div class="form-grid"><label>Мин. первый депозит, $<input name="minimum_first_deposit" type="number" min="0.01" step="0.01" required /></label><label>Premium от депозита, $<input name="premium_minimum_deposit" type="number" min="0.01" step="0.01" required /></label></div><div class="form-grid"><label>Premium лимит в день<input name="premium_daily_limit" type="number" min="0" required /></label><label>Контакт менеджера<input name="manager_telegram_url" type="url" maxlength="1024" placeholder="https://t.me/..." /></label></div><button type="submit">Сохранить настройки</button></form>
+      </section>
+    </main>
+    <div class="toast" id="toast" hidden></div>
+    <div class="access-overlay" id="access-overlay" hidden><article><p class="eyebrow">POCKET ACADEMY / ADMIN</p><h2 id="overlay-title">Открой админку в Telegram</h2><p class="muted" id="overlay-message">Для безопасной проверки прав нужен Telegram Mini App.</p></article></div>
+    <script src="/admin/app.js"></script>
+  </body>
+</html>
