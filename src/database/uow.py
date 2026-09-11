@@ -3,6 +3,7 @@ from typing import Self, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.dao.attribution_dao import AttributionDAO
+from database.dao.admin_dao import AdminDAO
 from database.dao.external_event_dao import ExternalEventDAO
 from database.dao.engagement_dao import EngagementDAO
 from database.dao.finance_dao import FinanceDAO
@@ -24,6 +25,7 @@ class UnitOfWork:
     settings: SettingsDAO
     products: ProductDAO
     engagement: EngagementDAO
+    admin: AdminDAO
 
     def __init__(self: Self, session: AsyncSession):
         self.session = session
@@ -36,6 +38,7 @@ class UnitOfWork:
         self.settings = SettingsDAO(session)
         self.products = ProductDAO(session)
         self.engagement = EngagementDAO(session)
+        self.admin = AdminDAO(session)
 
     async def commit(self: Self):
         await self.session.commit()

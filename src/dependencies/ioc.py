@@ -10,6 +10,7 @@ from database.engine import SessionFactory
 from database.uow import UnitOfWork
 from domain.clock import Clock, SystemClock
 from services import (
+    AdminService,
     BrokerEventService,
     ChatterfyService,
     DiaryService,
@@ -109,6 +110,10 @@ class AppProvider(Provider):
         self, product_service: ProductService
     ) -> BrokerEventService:
         return BrokerEventService(product_service)
+
+    @provide(scope=Scope.APP)
+    def admin_service(self) -> AdminService:
+        return AdminService()
 
 
 def get_async_container(

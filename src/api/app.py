@@ -38,6 +38,11 @@ def create_app(config: Config | None = None) -> FastAPI:
         StaticFiles(directory=resolved_config.root_path / "webapp", html=True),
         name="webapp",
     )
+    application.mount(
+        "/admin",
+        StaticFiles(directory=resolved_config.root_path / "admin", html=True),
+        name="admin",
+    )
     setup_dishka(container=container, app=application)
     return application
 
