@@ -49,5 +49,40 @@ class ExternalEventDAO:
             raise RuntimeError("External event was not persisted")
         return existing, False
 
-    async def mark_processed(self, event: ExternalEvent) -> None:
+    async def mark_processed(
+        self, event: ExternalEvent, *, processed_at: datetime.datetime
+    ) -> None:
         event.processing_status = "processed"
+        event.processed_at = processed_at
+        event.rejection_reason = None
+
+    async def list_received_pocket_option_events(
+        self,
+        *,
+        trader_id: str | None = None,
+        click_id: str | None = None,
+    ) -> list[ExternalEvent]:
+        if trader_id is None and click_id is None:
+            raise ValueError("A trader ID or click ID is required")
+        statement = select(ExternalEvent).where(
+            ExternalEvent.provider == "pocket_option",
+            ExternalEvent.processing_status == "received",
+        )
+        if trader_id is not None:
+            statement = statement.where(
+                ExternalEvent.payload["_normalized"]["trader_id"].astext == trader_id
+            )
+        if click_id is not None:
+            statement = statement.where(
+                ExternalEvent.payload["_normalized"]["click_id"].astext == click_id
+            )
+        return list(
+            (
+                await self._session.scalars(
+                    statement.order_by(
+                        ExternalEvent.occurred_at,
+                        ExternalEvent.received_at,
+                    )
+                )
+            ).all()
+        )

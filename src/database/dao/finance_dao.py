@@ -121,10 +121,24 @@ class FinanceDAO:
                 amount=amount,
                 status=status,
                 requested_at=requested_at,
+                last_external_event_id=external_event_id,
+                resolved_at=resolved_at,
             )
             self._session.add(withdrawal)
+            return withdrawal
+        if requested_at < withdrawal.requested_at:
+            return withdrawal
+        if requested_at == withdrawal.requested_at and _withdrawal_status_rank(
+            status
+        ) <= _withdrawal_status_rank(withdrawal.status):
+            return withdrawal
         withdrawal.last_external_event_id = external_event_id
         withdrawal.amount = amount
         withdrawal.status = status
+        withdrawal.requested_at = requested_at
         withdrawal.resolved_at = resolved_at
         return withdrawal
+
+
+def _withdrawal_status_rank(status: str) -> int:
+    return {"new": 0, "cancelled": 1, "success": 1}.get(status, -1)

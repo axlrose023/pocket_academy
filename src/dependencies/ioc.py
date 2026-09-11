@@ -16,6 +16,7 @@ from services import (
     DiaryService,
     ExternalEventService,
     PocketOptionEventParser,
+    PocketOptionEventService,
     ProductService,
     SignalService,
     TelegramWebAppAuthService,
@@ -80,8 +81,8 @@ class AppProvider(Provider):
         return ChatterfyService(external_event_service, clock)
 
     @provide(scope=Scope.APP)
-    def pocket_option_event_parser(self) -> PocketOptionEventParser:
-        return PocketOptionEventParser()
+    def pocket_option_event_parser(self, clock: Clock) -> PocketOptionEventParser:
+        return PocketOptionEventParser(clock)
 
     @provide(scope=Scope.APP)
     def access_service(self) -> AccessService:
@@ -107,9 +108,17 @@ class AppProvider(Provider):
 
     @provide(scope=Scope.APP)
     def broker_event_service(
-        self, product_service: ProductService
+        self, product_service: ProductService, clock: Clock
     ) -> BrokerEventService:
-        return BrokerEventService(product_service)
+        return BrokerEventService(product_service, clock)
+
+    @provide(scope=Scope.APP)
+    def pocket_option_event_service(
+        self,
+        broker_event_service: BrokerEventService,
+        parser: PocketOptionEventParser,
+    ) -> PocketOptionEventService:
+        return PocketOptionEventService(broker_event_service, parser)
 
     @provide(scope=Scope.APP)
     def admin_service(self) -> AdminService:

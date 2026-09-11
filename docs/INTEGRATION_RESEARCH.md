@@ -31,9 +31,44 @@ Source: [Chatterfy outgoing Webhook](https://docs.chatterfy.ai/en/crm/tracking/w
 
 - Chatterfy's Pocket Option setup guide confirms separate provider postbacks
   are configured for events and that a `click_id` parameter can be used for
-  attribution.
-- The exact Pocket Option event list, unique event identifier, withdrawal
-  statuses, request signature, and registration-link parameter are not public
-  contracts in this repository. They remain required go-live inputs.
+  attribution. Its event examples include `registration` and `resale`.
+- Chatterfy's Custom Postback reference identifies `sale` as a first deposit
+  and `resale` as a repeat deposit. The receiver accepts these aliases along
+  with the canonical `fd` and `rd` values.
+- The implementation records every accepted raw postback before processing it,
+  stores its normalized fields alongside the original payload, and retries
+  events that arrive before their Chatterfy attribution or broker registration.
+  A duplicate event is identified by the provider event ID when supplied;
+  otherwise a fingerprint of its complete payload is used.
 
-Source: [Chatterfy Pocket Option postbacks](https://help.chatterfy.ai/tracker/funkcional-tracker/pocket-option-postbacks).
+### Canonical receiver contract
+
+Configure the Pocket Option (or its intermediary) postback URL to send these
+names whenever its account exposes matching macros:
+
+```text
+https://<api-host>/api/integrations/pocket-option/events?token=<secret>
+  &event=registration|fd|rd|withdrawal
+  &click_id=<provider-click-id>
+  &trader_id=<provider-trader-id>
+  &amount=<usd-amount>
+  &event_id=<stable-provider-event-id>
+  &withdrawal_id=<stable-withdrawal-reference>
+  &status=pending|canceled|success
+  &occurred_at=<ISO-8601-or-Unix-time>
+  &currency=usd
+```
+
+`click_id` is required for registrations; `trader_id` and `amount` are
+required for FD/RD; withdrawals additionally require `event_id` (or a stable
+`withdrawal_id`) and `status`.
+The receiver also supports the commonly documented aliases `clickid`,
+`playerid`, `sum`, `sumdep`, `revenue`, `tid`, and `transaction_id` to make
+the handover safer. It rejects a non-USD currency rather than calculating PAC
+with an unknown exchange rate.
+
+The final Pocket Option account must still confirm its macro names, signature
+mechanism, registration-link parameter, and withdrawal-status values before
+the webhook secret is configured for production.
+
+Sources: [Chatterfy Pocket Option postbacks](https://help.chatterfy.ai/tracker/funkcional-tracker/pocket-option-postbacks), [Chatterfy Custom Postback](https://docs.chatterfy.ai/en/tracker/integrations/custom-postback).

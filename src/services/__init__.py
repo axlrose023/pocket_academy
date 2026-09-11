@@ -5,7 +5,7 @@ from services.external_events import (
 )
 from services.admin import AdminService
 from services.diary import DiaryService
-from services.broker_events import BrokerEventService
+from services.broker_events import BrokerEventService, PocketOptionEventService
 from services.products import ProductService
 from services.signals import SignalService
 from services.telegram_auth import TelegramWebAppAuthService
@@ -18,6 +18,7 @@ __all__ = [
     "DiaryService",
     "ExternalEventService",
     "PocketOptionEventParser",
+    "PocketOptionEventService",
     "ProductService",
     "SignalService",
     "TelegramWebAppAuthService",

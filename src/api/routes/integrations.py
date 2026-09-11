@@ -11,7 +11,12 @@ from api.security import require_webhook_secret
 from config import Config
 from database.uow import UnitOfWork
 from domain.enums import ExternalProvider
-from services import ChatterfyService, ExternalEventService, PocketOptionEventParser
+from services import (
+    ChatterfyService,
+    ExternalEventService,
+    PocketOptionEventParser,
+    PocketOptionEventService,
+)
 from services.exceptions import UnsupportedExternalEventError
 from services.external_events import ChatterfyLead
 
@@ -27,6 +32,7 @@ async def receive_chatterfy_lead(
     uow: FromDishka[UnitOfWork],
     config: FromDishka[Config],
     chatterfy_service: FromDishka[ChatterfyService],
+    pocket_option_event_service: FromDishka[PocketOptionEventService],
 ) -> AcceptedEventResponse:
     require_webhook_secret(request, config.integrations.chatterfy_webhook_secret)
     payload = await _read_payload(request)
@@ -47,6 +53,10 @@ async def receive_chatterfy_lead(
         ),
         payload=payload,
     )
+    await pocket_option_event_service.retry_pending_for_click_id(
+        uow,
+        click_id=lead_payload.click_id,
+    )
     await uow.commit()
     return AcceptedEventResponse(accepted=True, duplicate=not created)
 
@@ -63,23 +73,28 @@ async def receive_pocket_option_event(
     config: FromDishka[Config],
     parser: FromDishka[PocketOptionEventParser],
     event_service: FromDishka[ExternalEventService],
+    pocket_option_event_service: FromDishka[PocketOptionEventService],
 ) -> AcceptedEventResponse:
     require_webhook_secret(request, config.integrations.pocket_option_webhook_secret)
     payload = await _read_payload(request)
     try:
-        event_type, source_event_id = parser.parse(payload)
+        postback = parser.parse(payload)
     except UnsupportedExternalEventError as error:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Unsupported Pocket Option event",
         ) from error
-    _, created = await event_service.record(
+    event, created = await event_service.record(
         uow,
         provider=ExternalProvider.POCKET_OPTION,
-        event_type=event_type,
+        event_type=postback.event_type,
         payload=payload,
-        source_event_id=source_event_id,
+        source_event_id=postback.source_event_id,
+        occurred_at=postback.occurred_at,
+        normalized_payload=postback.normalized_payload(),
+        deduplication_identity=postback.deduplication_identity,
     )
+    await pocket_option_event_service.process(uow, event=event, postback=postback)
     await uow.commit()
     return AcceptedEventResponse(accepted=True, duplicate=not created)
 
