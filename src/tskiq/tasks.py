@@ -17,7 +17,7 @@ async def example_task(
 ) -> None:
     logger.info(f"Processing task for user {user_chat_id} with message: {message}")
 
-    user = await uow.user_dao.get_by_chat_id(user_chat_id)
+    user = await uow.users.get_by_telegram_id(user_chat_id)
     if user:
         logger.info(f"Found user: {user.username}")
 

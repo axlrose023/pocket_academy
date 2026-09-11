@@ -7,11 +7,11 @@ from database.dao.user_dao import UserDAO
 
 class UnitOfWork:
     session: AsyncSession
-    user_dao: UserDAO
+    users: UserDAO
 
     def __init__(self: Self, session: AsyncSession):
         self.session = session
-        self.user_dao = UserDAO(session)
+        self.users = UserDAO(session)
 
     async def commit(self: Self):
         await self.session.commit()

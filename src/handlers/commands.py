@@ -15,14 +15,17 @@ async def cmd_start(
     message: Message,
     uow: FromDishka["UnitOfWork"],
 ) -> None:
-    user = await uow.user_dao.get_by_chat_id(message.from_user.id)
+    if message.from_user is None:
+        return
+    user = await uow.users.get_by_telegram_id(message.from_user.id)
 
     if not user:
-        user = await uow.user_dao.create(
-            chat_id=message.from_user.id,
+        user = await uow.users.create(
+            telegram_id=message.from_user.id,
             first_name=message.from_user.first_name,
             username=message.from_user.username,
             last_name=message.from_user.last_name,
+            language_code=message.from_user.language_code,
         )
         await uow.commit()
         await message.answer("👋 Добро пожаловать! Вы успешно зарегистрированы.")
