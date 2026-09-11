@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from database.models import Product, SignalAsset, User
 from database.uow import UnitOfWork
-from domain.enums import AuditAction, ProductGrantCondition
+from domain.enums import AuditAction, NotificationType, ProductGrantCondition
 
 
 class AdminPermissionError(PermissionError):
@@ -55,6 +55,21 @@ class AdminService:
                 AuditAction.BLOCK_USER if blocked else AuditAction.UNBLOCK_USER
             ).value,
             payload={"reason": reason} if blocked else {},
+        )
+        await uow.engagement.add_notification(
+            user_id=target.id,
+            notification_type=(
+                NotificationType.ACCESS_BLOCKED
+                if blocked
+                else NotificationType.ACCESS_RESTORED
+            ).value,
+            title="Access suspended" if blocked else "Access restored",
+            body=(
+                reason
+                if blocked
+                else "Access was restored by a Pocket Academy manager."
+            )
+            or "Access was suspended by a Pocket Academy manager.",
         )
 
     async def dashboard(

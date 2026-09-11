@@ -23,7 +23,10 @@ class ProductService:
             raise ProductRuleError("Product cannot be purchased")
         if await uow.products.has_access(user_id=user_id, product_id=product_id):
             raise ProductRuleError("Product is already available")
-        if await uow.pac_ledger.balance(user_id) < product.price_pac:
+        if (
+            product.price_pac > 0
+            and await uow.pac_ledger.balance(user_id) < product.price_pac
+        ):
             raise ProductRuleError("Insufficient PAC balance")
         access = await uow.products.grant(
             user_id=user_id,
@@ -31,13 +34,14 @@ class ProductService:
             source=ProductAccessSource.PURCHASE.value,
             price=product.price_pac,
         )
-        await uow.pac_ledger.add(
-            user_id=user_id,
-            amount=-product.price_pac,
-            reason=PacEntryReason.PRODUCT_PURCHASE.value,
-            reference_id=product.id,
-            note=product.title,
-        )
+        if product.price_pac > 0:
+            await uow.pac_ledger.add(
+                user_id=user_id,
+                amount=-product.price_pac,
+                reason=PacEntryReason.PRODUCT_PURCHASE.value,
+                reference_id=product.id,
+                note=product.title,
+            )
         await self._notify_access(uow, user_id=user_id, product=product)
         return access
 

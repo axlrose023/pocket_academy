@@ -30,6 +30,36 @@ class FinanceDAO:
             )
         )
 
+    async def has_account(self, user_id: uuid.UUID) -> bool:
+        return (
+            await self._session.scalar(
+                select(BrokerAccount.id).where(BrokerAccount.user_id == user_id)
+            )
+            is not None
+        )
+
+    async def first_deposit(self, user_id: uuid.UUID) -> Deposit | None:
+        return await self._session.scalar(
+            select(Deposit)
+            .where(Deposit.user_id == user_id)
+            .order_by(Deposit.occurred_at, Deposit.created_at)
+            .limit(1)
+        )
+
+    async def list_recent_deposits(
+        self, *, user_id: uuid.UUID, limit: int
+    ) -> list[Deposit]:
+        return list(
+            (
+                await self._session.scalars(
+                    select(Deposit)
+                    .where(Deposit.user_id == user_id)
+                    .order_by(Deposit.occurred_at.desc())
+                    .limit(limit)
+                )
+            ).all()
+        )
+
     async def create_account(
         self,
         *,

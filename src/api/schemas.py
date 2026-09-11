@@ -43,6 +43,12 @@ class UserProfileResponse(BaseModel):
     total_deposits: Decimal
     pac_balance: Decimal
     is_blocked: bool
+    is_registered: bool
+    has_deposit: bool
+    first_deposit_amount: Decimal | None
+    minimum_first_deposit: Decimal
+    is_low_first_deposit: bool
+    manager_telegram_url: str | None
     current_status_minimum_deposits: Decimal
     next_status: str | None
     next_status_minimum_deposits: Decimal | None
@@ -124,6 +130,8 @@ class SignalAvailabilityResponse(BaseModel):
 
 class SignalOverviewResponse(BaseModel):
     is_blocked: bool
+    is_registered: bool
+    has_deposit: bool
     allowed_timeframes: tuple[int, ...]
     standard: SignalAvailabilityResponse
     premium: SignalAvailabilityResponse
@@ -160,6 +168,7 @@ class AdminUserResponse(BaseModel):
     status: str
     is_blocked: bool
     is_manually_blocked: bool
+    is_manually_unblocked: bool
     manual_block_reason: str | None
 
 

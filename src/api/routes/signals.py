@@ -49,6 +49,8 @@ async def get_signal_availability(
     await context.uow.commit()
     return SignalOverviewResponse(
         is_blocked=overview.access.is_blocked,
+        is_registered=overview.is_registered,
+        has_deposit=overview.has_deposit,
         allowed_timeframes=allowed_timeframes(overview.access.status_policy),
         standard=_availability_response(overview.standard),
         premium=_availability_response(overview.premium),
@@ -61,7 +63,7 @@ async def get_signal_availability(
 async def list_recent_signals(
     context: WebAppContext = Depends(get_webapp_context),
 ) -> SignalListResponse:
-    signals = await context.uow.signals.list_recent(user_id=context.user.id, limit=20)
+    signals = await context.uow.signals.list_recent(user_id=context.user.id, limit=3)
     return SignalListResponse(signals=[_signal_response(signal) for signal in signals])
 
 

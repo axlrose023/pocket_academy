@@ -29,6 +29,11 @@ class User(Base):
         default=False,
         server_default="false",
     )
+    is_manually_unblocked: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="false",
+    )
     manual_block_reason: Mapped[str | None] = mapped_column(String(500))
 
     @property

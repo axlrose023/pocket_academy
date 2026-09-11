@@ -25,6 +25,8 @@ class SignalAvailability:
 @dataclass(frozen=True, slots=True)
 class UserSignalOverview:
     access: UserAccessSnapshot
+    is_registered: bool
+    has_deposit: bool
     standard: SignalAvailability
     premium: SignalAvailability
     premium_minimum_deposit: Decimal
@@ -54,6 +56,10 @@ class SignalService:
         overview = await self.overview(uow, user=user)
         if overview.access.is_blocked:
             raise SignalRuleError("Access is blocked")
+        if not overview.is_registered:
+            raise SignalRuleError("Broker registration is required")
+        if not overview.has_deposit:
+            raise SignalRuleError("A deposit is required")
         if timeframe_seconds not in allowed_timeframes(overview.access.status_policy):
             raise SignalRuleError("Timeframe is not available")
         now = self._clock.now()
@@ -98,6 +104,8 @@ class SignalService:
         )
         return UserSignalOverview(
             access=access,
+            is_registered=await uow.finance.has_account(user.id),
+            has_deposit=access.total_deposits > 0,
             standard=standard,
             premium=premium,
             premium_minimum_deposit=settings.premium_minimum_deposit,

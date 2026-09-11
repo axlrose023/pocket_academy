@@ -30,8 +30,14 @@ class AccessService:
                 start=Decimal("0"),
             )
             is_withdrawal_blocked = deposits_after < withdrawals_total
+        if user.is_manually_blocked:
+            is_blocked = True
+        elif user.is_manually_unblocked:
+            is_blocked = False
+        else:
+            is_blocked = is_withdrawal_blocked
         return UserAccessSnapshot(
             total_deposits=total_deposits,
             status_policy=resolve_status(total_deposits),
-            is_blocked=user.is_manually_blocked or is_withdrawal_blocked,
+            is_blocked=is_blocked,
         )

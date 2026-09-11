@@ -9,10 +9,12 @@ from domain.clock import Clock
 from domain.enums import (
     DepositKind,
     ExternalEventType,
+    NotificationType,
     PacEntryReason,
     WithdrawalStatus,
 )
 from services.external_events import PocketOptionEventParser, PocketOptionPostback
+from services.access import AccessService, UserAccessSnapshot
 from services.products import ProductService
 
 
@@ -48,9 +50,15 @@ class BrokerWithdrawal:
 
 
 class BrokerEventService:
-    def __init__(self, product_service: ProductService, clock: Clock) -> None:
+    def __init__(
+        self,
+        product_service: ProductService,
+        clock: Clock,
+        access_service: AccessService,
+    ) -> None:
         self._product_service = product_service
         self._clock = clock
+        self._access_service = access_service
 
     async def register(
         self, uow: UnitOfWork, *, event: ExternalEvent, registration: BrokerRegistration
@@ -70,6 +78,12 @@ class BrokerEventService:
                 trader_id=registration.trader_id,
                 registered_at=registration.occurred_at,
             )
+            await uow.engagement.add_notification(
+                user_id=user.id,
+                notification_type=NotificationType.REGISTRATION.value,
+                title="Registration confirmed",
+                body="Your Pocket Option account is connected to Pocket Academy.",
+            )
         await self._product_service.grant_automatic(
             uow, user_id=user.id, registered=True, total_deposits=Decimal("0")
         )
@@ -87,6 +101,10 @@ class BrokerEventService:
         )
         if account is None:
             raise BrokerEventError("Unknown broker account")
+        user = await uow.users.get_for_update(account.user_id)
+        if user is None:
+            raise BrokerEventError("Unknown user")
+        access_before = await self._access_service.snapshot(uow, user=user)
         await uow.finance.add_deposit(
             user_id=account.user_id,
             broker_account_id=account.id,
@@ -102,18 +120,45 @@ class BrokerEventService:
             reference_id=event.id,
             note=f"{deposit.kind.value.title()} deposit",
         )
-        total_deposits = await uow.finance.total_deposits(account.user_id)
+        access_after = await self._access_service.snapshot(uow, user=user)
         await self._product_service.grant_automatic(
             uow,
             user_id=account.user_id,
             registered=False,
-            total_deposits=total_deposits,
+            total_deposits=access_after.total_deposits,
         )
         await uow.engagement.add_notification(
             user_id=account.user_id,
-            notification_type="deposit",
+            notification_type=NotificationType.DEPOSIT.value,
             title="PAC credited",
             body=f"Deposit: ${deposit.amount}. {deposit.amount} PAC added.",
+        )
+        if access_before.total_deposits == 0:
+            settings = await uow.settings.get_or_create()
+            if deposit.amount < settings.minimum_first_deposit:
+                await uow.engagement.add_notification(
+                    user_id=account.user_id,
+                    notification_type=NotificationType.LOW_FIRST_DEPOSIT.value,
+                    title="Deposit is below the activation threshold",
+                    body=(
+                        f"Deposit at least ${settings.minimum_first_deposit} "
+                        "on a new account to activate access."
+                    ),
+                )
+        if access_before.status_policy != access_after.status_policy:
+            await uow.engagement.add_notification(
+                user_id=account.user_id,
+                notification_type=NotificationType.STATUS_CHANGED.value,
+                title="New trading status",
+                body=(
+                    f"You reached {access_after.status_policy.status.value.title()}."
+                ),
+            )
+        await self._notify_access_change(
+            uow,
+            user_id=account.user_id,
+            before=access_before,
+            after=access_after,
         )
         await uow.external_events.mark_processed(
             event,
@@ -133,6 +178,12 @@ class BrokerEventService:
         )
         if account is None:
             raise BrokerEventError("Unknown broker account")
+        user = await uow.users.get_for_update(account.user_id)
+        if user is None:
+            raise BrokerEventError("Unknown user")
+        access_before = await self._access_service.snapshot(uow, user=user)
+        if withdrawal.status != WithdrawalStatus.CANCELLED:
+            user.is_manually_unblocked = False
         await uow.finance.upsert_withdrawal(
             user_id=account.user_id,
             broker_account_id=account.id,
@@ -148,9 +199,44 @@ class BrokerEventService:
                 else None
             ),
         )
+        access_after = await self._access_service.snapshot(uow, user=user)
+        await self._notify_access_change(
+            uow,
+            user_id=account.user_id,
+            before=access_before,
+            after=access_after,
+        )
         await uow.external_events.mark_processed(
             event,
             processed_at=self._clock.now(),
+        )
+
+    @staticmethod
+    async def _notify_access_change(
+        uow: UnitOfWork,
+        *,
+        user_id,
+        before: UserAccessSnapshot,
+        after: UserAccessSnapshot,
+    ) -> None:
+        if before.is_blocked == after.is_blocked:
+            return
+        if after.is_blocked:
+            await uow.engagement.add_notification(
+                user_id=user_id,
+                notification_type=NotificationType.ACCESS_BLOCKED.value,
+                title="Access suspended",
+                body=(
+                    "Cancel the withdrawal, make a new deposit for its amount, "
+                    "or contact your manager."
+                ),
+            )
+            return
+        await uow.engagement.add_notification(
+            user_id=user_id,
+            notification_type=NotificationType.ACCESS_RESTORED.value,
+            title="Access restored",
+            body="Your Pocket Academy access is available again.",
         )
 
 

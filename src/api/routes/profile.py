@@ -28,6 +28,10 @@ async def get_profile(
     access = await access_service.snapshot(context.uow, user=context.user)
     progress = status_progress(access.total_deposits)
     balance = await context.uow.pac_ledger.balance(context.user.id)
+    settings = await context.uow.settings.get_or_create()
+    first_deposit = await context.uow.finance.first_deposit(context.user.id)
+    is_registered = await context.uow.finance.has_account(context.user.id)
+    await context.uow.commit()
     return UserProfileResponse(
         telegram_id=context.user.telegram_id,
         name=context.user.full_name or context.user.username,
@@ -36,6 +40,17 @@ async def get_profile(
         total_deposits=access.total_deposits,
         pac_balance=balance,
         is_blocked=access.is_blocked,
+        is_registered=is_registered,
+        has_deposit=first_deposit is not None,
+        first_deposit_amount=(
+            first_deposit.amount if first_deposit is not None else None
+        ),
+        minimum_first_deposit=settings.minimum_first_deposit,
+        is_low_first_deposit=(
+            first_deposit is not None
+            and first_deposit.amount < settings.minimum_first_deposit
+        ),
+        manager_telegram_url=settings.manager_telegram_url,
         current_status_minimum_deposits=progress.current.minimum_deposits,
         next_status=progress.next.status.value if progress.next is not None else None,
         next_status_minimum_deposits=(

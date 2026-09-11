@@ -293,6 +293,7 @@ async def _user_response(
         status=access.status_policy.status.value,
         is_blocked=access.is_blocked,
         is_manually_blocked=user.is_manually_blocked,
+        is_manually_unblocked=user.is_manually_unblocked,
         manual_block_reason=user.manual_block_reason,
     )
 

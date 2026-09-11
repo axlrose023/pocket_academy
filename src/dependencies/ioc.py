@@ -108,9 +108,12 @@ class AppProvider(Provider):
 
     @provide(scope=Scope.APP)
     def broker_event_service(
-        self, product_service: ProductService, clock: Clock
+        self,
+        product_service: ProductService,
+        clock: Clock,
+        access_service: AccessService,
     ) -> BrokerEventService:
-        return BrokerEventService(product_service, clock)
+        return BrokerEventService(product_service, clock, access_service)
 
     @provide(scope=Scope.APP)
     def pocket_option_event_service(

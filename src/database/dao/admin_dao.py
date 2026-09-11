@@ -47,6 +47,7 @@ class AdminDAO:
         self, user: User, *, blocked: bool, reason: str | None
     ) -> None:
         user.is_manually_blocked = blocked
+        user.is_manually_unblocked = not blocked
         user.manual_block_reason = reason if blocked else None
 
     async def get_product(self, product_id: uuid.UUID) -> Product | None:
