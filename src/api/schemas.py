@@ -41,6 +41,10 @@ class UserProfileResponse(BaseModel):
     total_deposits: Decimal
     pac_balance: Decimal
     is_blocked: bool
+    current_status_minimum_deposits: Decimal
+    next_status: str | None
+    next_status_minimum_deposits: Decimal | None
+    remaining_deposits: Decimal
 
 
 class DiaryEntryRequest(BaseModel):

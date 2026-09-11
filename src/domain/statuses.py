@@ -23,6 +23,13 @@ class StatusPolicy:
     daily_signal_limit: int | None
 
 
+@dataclass(frozen=True, slots=True)
+class StatusProgress:
+    current: StatusPolicy
+    next: StatusPolicy | None
+    remaining_deposits: Decimal
+
+
 STATUS_POLICIES = (
     StatusPolicy(UserStatus.NOVICE, Decimal("0"), 1_200, 300, 70, 75, 8),
     StatusPolicy(UserStatus.TRADER, Decimal("50"), 600, 180, 78, 82, 12),
@@ -48,4 +55,23 @@ def allowed_timeframes(policy: StatusPolicy) -> tuple[int, ...]:
         timeframe
         for timeframe in TIMEFRAMES_SECONDS
         if timeframe >= policy.minimum_timeframe_seconds
+    )
+
+
+def status_progress(total_deposits: Decimal) -> StatusProgress:
+    current = resolve_status(total_deposits)
+    current_index = STATUS_POLICIES.index(current)
+    next_policy = (
+        STATUS_POLICIES[current_index + 1]
+        if current_index + 1 < len(STATUS_POLICIES)
+        else None
+    )
+    return StatusProgress(
+        current=current,
+        next=next_policy,
+        remaining_deposits=(
+            max(Decimal("0"), next_policy.minimum_deposits - total_deposits)
+            if next_policy is not None
+            else Decimal("0")
+        ),
     )

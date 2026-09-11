@@ -12,6 +12,7 @@ from api.schemas import (
 )
 from api.webapp_auth import WebAppContext, get_webapp_context
 from database.models import DiaryEntry
+from domain.statuses import status_progress
 from services.access import AccessService
 from services.diary import DiaryService
 
@@ -25,6 +26,7 @@ async def get_profile(
     context: WebAppContext = Depends(get_webapp_context),
 ) -> UserProfileResponse:
     access = await access_service.snapshot(context.uow, user=context.user)
+    progress = status_progress(access.total_deposits)
     balance = await context.uow.pac_ledger.balance(context.user.id)
     return UserProfileResponse(
         telegram_id=context.user.telegram_id,
@@ -34,6 +36,12 @@ async def get_profile(
         total_deposits=access.total_deposits,
         pac_balance=balance,
         is_blocked=access.is_blocked,
+        current_status_minimum_deposits=progress.current.minimum_deposits,
+        next_status=progress.next.status.value if progress.next is not None else None,
+        next_status_minimum_deposits=(
+            progress.next.minimum_deposits if progress.next is not None else None
+        ),
+        remaining_deposits=progress.remaining_deposits,
     )
 
 
