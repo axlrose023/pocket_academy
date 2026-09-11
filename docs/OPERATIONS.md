@@ -4,14 +4,16 @@
 
 1. Set a real `BOT_BOT__TOKEN`, HTTPS `BOT_API__PUBLIC_BASE_URL`, and
    `BOT_BOT__WEBAPP_URL`.
-2. Generate distinct long random values for the Chatterfy and Pocket Option
+2. Set `BOT_ADMIN__TELEGRAM_IDS` to the JSON array of initial administrator
+   Telegram IDs, for example `[123456789]`.
+3. Generate distinct long random values for the Chatterfy and Pocket Option
    webhook secrets. Do not reuse the Telegram token.
-3. Configure Chatterfy to call `/api/integrations/chatterfy/leads?token=...`.
+4. Configure Chatterfy to call `/api/integrations/chatterfy/leads?token=...`.
    The standard Chatterfy Flow Webhook does not support custom headers.
-4. Confirm the Pocket Option postback field mapping, signature method, unique
+5. Confirm the Pocket Option postback field mapping, signature method, unique
    event ID, trader ID, amount, timestamp, and withdrawal status values before
    enabling its endpoint.
-5. Run controlled test events for registration, FD, RD, withdrawal, cancelled
+6. Run controlled test events for registration, FD, RD, withdrawal, cancelled
    withdrawal, duplicate delivery, and reordered delivery.
 
 The initial migration supplies EUR/USD, GBP/USD, USD/JPY, EUR/CHF, and their

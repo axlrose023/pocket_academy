@@ -2,6 +2,7 @@ import datetime
 from dataclasses import dataclass
 from decimal import Decimal
 
+from config import Config
 from database.models import DiaryEntry, Product, ProductMaterial, SignalAsset, User
 from database.uow import UnitOfWork
 from domain.enums import AuditAction, NotificationType, ProductGrantCondition
@@ -98,9 +99,14 @@ class AdminUserDiaryReport:
 
 
 class AdminService:
+    def __init__(self, config: Config) -> None:
+        self._bootstrap_admin_ids = frozenset(config.admin.telegram_ids)
+
     async def require_admin(self, uow: UnitOfWork, *, telegram_id: int) -> User:
         user = await uow.users.get_by_telegram_id(telegram_id)
-        if user is None or not user.is_admin:
+        if user is None or (
+            not user.is_admin and telegram_id not in self._bootstrap_admin_ids
+        ):
             raise AdminPermissionError("Administrator access is required")
         return user
 

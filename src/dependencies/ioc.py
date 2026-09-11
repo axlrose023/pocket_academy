@@ -124,8 +124,8 @@ class AppProvider(Provider):
         return PocketOptionEventService(broker_event_service, parser)
 
     @provide(scope=Scope.APP)
-    def admin_service(self) -> AdminService:
-        return AdminService()
+    def admin_service(self, config: Config) -> AdminService:
+        return AdminService(config)
 
 
 def get_async_container(

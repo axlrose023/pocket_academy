@@ -79,6 +79,10 @@ class RateLimitConfig(BaseModel):
     webhook_requests_per_window: int = Field(default=60, gt=0, le=10_000)
 
 
+class AdminConfig(BaseModel):
+    telegram_ids: tuple[int, ...] = ()
+
+
 class IntegrationConfig(BaseModel):
     chatterfy_webhook_secret: SecretStr | None = None
     pocket_option_webhook_secret: SecretStr | None = None
@@ -109,6 +113,7 @@ class Config(BaseSettings):
     redis: RedisConfig = Field(default_factory=RedisConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
+    admin: AdminConfig = Field(default_factory=AdminConfig)
     integrations: IntegrationConfig = Field(default_factory=IntegrationConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
 
