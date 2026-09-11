@@ -25,6 +25,8 @@ from database.models import (
 class AdminDashboardTotals:
     leads: int
     registrations: int
+    deposit_count: int
+    deposit_amount: Decimal
     first_deposits: int
     first_deposit_amount: Decimal
     repeat_deposits: int
@@ -53,6 +55,8 @@ class AdminDashboardSeriesPoint:
     period_start: datetime.date
     leads: int
     registrations: int
+    deposit_count: int
+    deposit_amount: Decimal
     first_deposits: int
     first_deposit_amount: Decimal
     repeat_deposits: int
@@ -341,6 +345,8 @@ class AdminDAO:
         deposit_row = (
             await self._session.execute(
                 select(
+                    func.count(),
+                    func.coalesce(func.sum(Deposit.amount), 0),
                     func.count().filter(Deposit.kind == "first"),
                     func.coalesce(
                         func.sum(Deposit.amount).filter(Deposit.kind == "first"),
@@ -392,10 +398,12 @@ class AdminDAO:
         return AdminDashboardTotals(
             leads=leads,
             registrations=registrations,
-            first_deposits=int(deposit_row[0] or 0),
-            first_deposit_amount=Decimal(deposit_row[1]),
-            repeat_deposits=int(deposit_row[2] or 0),
-            repeat_deposit_amount=Decimal(deposit_row[3]),
+            deposit_count=int(deposit_row[0] or 0),
+            deposit_amount=Decimal(deposit_row[1]),
+            first_deposits=int(deposit_row[2] or 0),
+            first_deposit_amount=Decimal(deposit_row[3]),
+            repeat_deposits=int(deposit_row[4] or 0),
+            repeat_deposit_amount=Decimal(deposit_row[5]),
             signals=signals,
             diary_entries=diary_statistics.entry_count,
             active_users=active_users,
@@ -425,6 +433,8 @@ class AdminDAO:
             period_start: {
                 "leads": 0,
                 "registrations": 0,
+                "deposit_count": 0,
+                "deposit_amount": Decimal("0"),
                 "first_deposits": 0,
                 "first_deposit_amount": Decimal("0"),
                 "repeat_deposits": 0,
@@ -453,6 +463,8 @@ class AdminDAO:
             periods[period_start]["registrations"] = count
         for (
             period_start,
+            deposit_count,
+            deposit_amount,
             first_count,
             first_amount,
             repeat_count,
@@ -463,6 +475,8 @@ class AdminDAO:
             granularity=granularity,
         ):
             period = periods[period_start]
+            period["deposit_count"] = deposit_count
+            period["deposit_amount"] = deposit_amount
             period["first_deposits"] = first_count
             period["first_deposit_amount"] = first_amount
             period["repeat_deposits"] = repeat_count
@@ -544,11 +558,13 @@ class AdminDAO:
         occurred_from: datetime.datetime,
         occurred_until: datetime.datetime,
         granularity: str,
-    ) -> list[tuple[datetime.date, int, Decimal, int, Decimal]]:
+    ) -> list[tuple[datetime.date, int, Decimal, int, Decimal, int, Decimal]]:
         period = _utc_period(Deposit.occurred_at, granularity)
         rows = await self._session.execute(
             select(
                 period,
+                func.count(),
+                func.coalesce(func.sum(Deposit.amount), 0),
                 func.count().filter(Deposit.kind == "first"),
                 func.coalesce(
                     func.sum(Deposit.amount).filter(Deposit.kind == "first"), 0
@@ -568,12 +584,22 @@ class AdminDAO:
         return [
             (
                 period_start,
+                int(deposit_count or 0),
+                Decimal(deposit_amount or 0),
                 int(first_count or 0),
                 Decimal(first_amount or 0),
                 int(repeat_count or 0),
                 Decimal(repeat_amount or 0),
             )
-            for period_start, first_count, first_amount, repeat_count, repeat_amount in rows
+            for (
+                period_start,
+                deposit_count,
+                deposit_amount,
+                first_count,
+                first_amount,
+                repeat_count,
+                repeat_amount,
+            ) in rows
         ]
 
     async def _diary_series(

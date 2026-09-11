@@ -66,6 +66,8 @@ const readNullableNumber = (form, name) => {
 const renderDashboard = (dashboard) => {
   $('[data-metric="leads"]').textContent = dashboard.leads;
   $('[data-metric="registrations"]').textContent = dashboard.registrations;
+  $('[data-metric="deposit-count"]').textContent = dashboard.deposit_count;
+  $('[data-metric="deposit-amount"]').textContent = money(dashboard.deposit_amount);
   $('[data-metric="first-deposits"]').textContent = dashboard.first_deposits;
   $('[data-metric="first-deposit-amount"]').textContent = money(dashboard.first_deposit_amount);
   $('[data-metric="repeat-deposits"]').textContent = dashboard.repeat_deposits;
@@ -94,6 +96,7 @@ const renderDashboardSeries = (series) => {
       point.period_start,
       point.leads,
       point.registrations,
+      `${point.deposit_count} · ${money(point.deposit_amount)}`,
       `${point.first_deposits} · ${money(point.first_deposit_amount)}`,
       `${point.repeat_deposits} · ${money(point.repeat_deposit_amount)}`,
       point.webapp_opens,

@@ -24,6 +24,8 @@ class AdminDashboard:
     granularity: str
     leads: int
     registrations: int
+    deposit_count: int
+    deposit_amount: Decimal
     first_deposits: int
     first_deposit_amount: Decimal
     repeat_deposits: int
@@ -50,6 +52,8 @@ class AdminDashboardSeriesPoint:
     period_start: datetime.date
     leads: int
     registrations: int
+    deposit_count: int
+    deposit_amount: Decimal
     first_deposits: int
     first_deposit_amount: Decimal
     repeat_deposits: int
@@ -179,6 +183,8 @@ class AdminService:
             granularity=granularity,
             leads=totals.leads,
             registrations=totals.registrations,
+            deposit_count=totals.deposit_count,
+            deposit_amount=totals.deposit_amount,
             first_deposits=totals.first_deposits,
             first_deposit_amount=totals.first_deposit_amount,
             repeat_deposits=totals.repeat_deposits,
@@ -216,6 +222,8 @@ class AdminService:
                     period_start=point.period_start,
                     leads=point.leads,
                     registrations=point.registrations,
+                    deposit_count=point.deposit_count,
+                    deposit_amount=point.deposit_amount,
                     first_deposits=point.first_deposits,
                     first_deposit_amount=point.first_deposit_amount,
                     repeat_deposits=point.repeat_deposits,

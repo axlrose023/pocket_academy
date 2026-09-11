@@ -369,6 +369,8 @@ class AdminDashboardResponse(BaseModel):
     granularity: str
     leads: int
     registrations: int
+    deposit_count: int
+    deposit_amount: Decimal
     first_deposits: int
     first_deposit_amount: Decimal
     repeat_deposits: int
@@ -394,6 +396,8 @@ class AdminDashboardSeriesPointResponse(BaseModel):
     period_start: datetime.date
     leads: int
     registrations: int
+    deposit_count: int
+    deposit_amount: Decimal
     first_deposits: int
     first_deposit_amount: Decimal
     repeat_deposits: int
