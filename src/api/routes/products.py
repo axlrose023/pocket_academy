@@ -14,6 +14,7 @@ from api.schemas import (
 from api.webapp_auth import WebAppContext, get_webapp_context
 from database.models import Product
 from services.products import ProductRuleError, ProductService
+from services.storage import MaterialStorage, MaterialStorageError
 
 router = APIRouter(prefix="/products", tags=["webapp"])
 
@@ -59,8 +60,10 @@ async def purchase_product(
 
 
 @router.get("/{product_id}/materials", response_model=ProductMaterialListResponse)
+@inject
 async def list_product_materials(
     product_id: uuid.UUID,
+    material_storage: FromDishka[MaterialStorage],
     context: WebAppContext = Depends(get_webapp_context),
 ) -> ProductMaterialListResponse:
     product = await context.uow.products.get_accessible(
@@ -73,18 +76,26 @@ async def list_product_materials(
             detail="Product access is required",
         )
     materials = await context.uow.products.list_materials(product.id)
-    return ProductMaterialListResponse(
-        materials=[
+    try:
+        response_materials = [
             ProductMaterialResponse(
                 id=material.id,
                 title=material.title,
                 content_type=material.content_type,
-                external_url=material.external_url,
+                external_url=(
+                    await material_storage.download_url(material.storage_key)
+                    or material.external_url
+                ),
                 sort_order=material.sort_order,
             )
             for material in materials
         ]
-    )
+    except MaterialStorageError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Material storage is temporarily unavailable",
+        ) from error
+    return ProductMaterialListResponse(materials=response_materials)
 
 
 def _product_response(product: Product, *, is_available: bool) -> ProductResponse:

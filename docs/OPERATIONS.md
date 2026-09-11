@@ -22,10 +22,13 @@ first release.
 
 ## S3-compatible content storage
 
-Product materials use `storage_key` already. Enable object storage only when
-the endpoint, bucket, credentials, region, media limits, and access model are
-chosen. The application must issue short-lived authorized download URLs rather
-than storing public bucket URLs in products.
+Product materials use `storage_key` already. S3 storage is disabled by default.
+Once the endpoint, bucket, credentials, region, media limits, and access model
+are chosen, set `BOT_STORAGE__ENABLED=true` and fill the matching
+`BOT_STORAGE__*` values. Access to a stored material is checked by Pocket
+Academy first; only then does it issue a short-lived, signed `get_object` URL.
+Keep the bucket private and use `BOT_STORAGE__FORCE_PATH_STYLE=true` for
+S3-compatible providers that require path-style addressing.
 
 ## Release checks
 

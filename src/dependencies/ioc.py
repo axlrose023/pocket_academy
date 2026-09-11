@@ -9,6 +9,7 @@ from bot import create_bot
 from database.engine import SessionFactory
 from database.uow import UnitOfWork
 from domain.clock import Clock, SystemClock
+from domain.randomizer import SignalRandomizer
 from services import (
     AdminService,
     BrokerEventService,
@@ -23,7 +24,7 @@ from services import (
     UserService,
 )
 from services.access import AccessService
-from domain.randomizer import SignalRandomizer
+from services.storage import DisabledMaterialStorage, MaterialStorage, S3MaterialStorage
 
 
 class AppProvider(Provider):
@@ -101,6 +102,12 @@ class AppProvider(Provider):
     @provide(scope=Scope.APP)
     def product_service(self) -> ProductService:
         return ProductService()
+
+    @provide(scope=Scope.APP)
+    def material_storage(self, config: Config) -> MaterialStorage:
+        if not config.storage.enabled:
+            return DisabledMaterialStorage()
+        return S3MaterialStorage(config.storage)
 
     @provide(scope=Scope.APP)
     def diary_service(self) -> DiaryService:

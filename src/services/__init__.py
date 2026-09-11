@@ -8,6 +8,7 @@ from services.diary import DiaryService
 from services.broker_events import BrokerEventService, PocketOptionEventService
 from services.products import ProductService
 from services.signals import SignalService
+from services.storage import MaterialStorage
 from services.telegram_auth import TelegramWebAppAuthService
 from services.users import UserService
 
@@ -21,6 +22,7 @@ __all__ = [
     "PocketOptionEventService",
     "ProductService",
     "SignalService",
+    "MaterialStorage",
     "TelegramWebAppAuthService",
     "UserService",
 ]
