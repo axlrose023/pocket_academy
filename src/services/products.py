@@ -14,6 +14,8 @@ class ProductService:
     async def purchase(
         self, uow: UnitOfWork, *, user_id: uuid.UUID, product_id: uuid.UUID
     ) -> UserProductAccess:
+        if await uow.users.get_for_update(user_id) is None:
+            raise ProductRuleError("User not found")
         product = await uow.products.get_published(product_id)
         if product is None:
             raise ProductRuleError("Product is unavailable")

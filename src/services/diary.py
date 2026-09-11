@@ -26,6 +26,8 @@ class DiaryService:
         mood: int,
         comment: str | None,
     ) -> DiarySaveResult:
+        if await uow.users.get_for_update(user_id) is None:
+            raise ValueError("User not found")
         entry = await uow.engagement.save_diary_entry(
             user_id=user_id,
             entry_day=today,
@@ -37,17 +39,13 @@ class DiaryService:
         if not await uow.engagement.has_diary_entry(
             user_id=user_id,
             entry_day=today - datetime.timedelta(days=1),
-        ) or await uow.pac_ledger.has_entry(
-            user_id=user_id,
-            reason=PacEntryReason.DIARY_STREAK_REWARD.value,
-            reference_day=today,
         ):
             return DiarySaveResult(entry=entry, reward_granted=False)
-        await uow.pac_ledger.add(
+        reward_granted = await uow.pac_ledger.add_daily_reward_once(
             user_id=user_id,
             amount=Decimal("5"),
             reason=PacEntryReason.DIARY_STREAK_REWARD.value,
             reference_day=today,
             note="Two-day diary streak",
         )
-        return DiarySaveResult(entry=entry, reward_granted=True)
+        return DiarySaveResult(entry=entry, reward_granted=reward_granted)

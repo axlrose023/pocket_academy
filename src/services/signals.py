@@ -48,7 +48,7 @@ class SignalService:
         timeframe_seconds: int,
         premium: bool,
     ) -> Signal:
-        user = await uow.session.get(User, user_id)
+        user = await uow.users.get_for_update(user_id)
         if user is None:
             raise SignalRuleError("User not found")
         overview = await self.overview(uow, user=user)

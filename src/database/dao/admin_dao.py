@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import Product, SignalAsset, User
+from database.models import AuditLog, Product, SignalAsset, User
 
 
 class AdminDAO:
@@ -40,6 +40,11 @@ class AdminDAO:
     async def get_asset(self, asset_id: uuid.UUID) -> SignalAsset | None:
         return await self._session.get(SignalAsset, asset_id)
 
+    async def get_asset_by_key(self, asset_key: str) -> SignalAsset | None:
+        return await self._session.scalar(
+            select(SignalAsset).where(SignalAsset.asset_key == asset_key)
+        )
+
     async def list_assets(self) -> list[SignalAsset]:
         return list(
             (
@@ -48,3 +53,20 @@ class AdminDAO:
                 )
             ).all()
         )
+
+    async def add_audit_log(
+        self,
+        *,
+        actor_id: uuid.UUID,
+        action: str,
+        payload: dict,
+        target_user_id: uuid.UUID | None = None,
+    ) -> AuditLog:
+        audit_log = AuditLog(
+            actor_id=actor_id,
+            target_user_id=target_user_id,
+            action=action,
+            payload=payload,
+        )
+        self._session.add(audit_log)
+        return audit_log

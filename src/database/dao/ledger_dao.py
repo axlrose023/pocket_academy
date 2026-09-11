@@ -3,6 +3,7 @@ import uuid
 from decimal import Decimal
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import PacLedgerEntry
@@ -41,16 +42,31 @@ class PacLedgerDAO:
         self._session.add(entry)
         return entry
 
-    async def has_entry(
-        self, *, user_id: uuid.UUID, reason: str, reference_day: datetime.date
+    async def add_daily_reward_once(
+        self,
+        *,
+        user_id: uuid.UUID,
+        amount: Decimal,
+        reason: str,
+        reference_day: datetime.date,
+        note: str,
     ) -> bool:
-        return (
-            await self._session.scalar(
-                select(PacLedgerEntry.id).where(
-                    PacLedgerEntry.user_id == user_id,
-                    PacLedgerEntry.reason == reason,
-                    PacLedgerEntry.reference_day == reference_day,
-                )
+        statement = (
+            insert(PacLedgerEntry)
+            .values(
+                user_id=user_id,
+                amount=amount,
+                reason=reason,
+                reference_day=reference_day,
+                note=note,
             )
-            is not None
+            .on_conflict_do_nothing(
+                index_elements=[
+                    PacLedgerEntry.user_id,
+                    PacLedgerEntry.reason,
+                    PacLedgerEntry.reference_day,
+                ]
+            )
+            .returning(PacLedgerEntry.id)
         )
+        return (await self._session.scalar(statement)) is not None

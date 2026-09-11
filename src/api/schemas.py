@@ -4,6 +4,8 @@ from decimal import Decimal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
+from domain.enums import ProductGrantCondition, ProductType
+
 
 class TelegramSessionRequest(BaseModel):
     init_data: str = Field(min_length=1)
@@ -147,3 +149,108 @@ class SignalResponse(BaseModel):
 
 class SignalListResponse(BaseModel):
     signals: list[SignalResponse]
+
+
+class AdminUserResponse(BaseModel):
+    telegram_id: int
+    name: str | None
+    username: str | None
+    total_deposits: Decimal
+    pac_balance: Decimal
+    status: str
+    is_blocked: bool
+    is_manually_blocked: bool
+    manual_block_reason: str | None
+
+
+class AdminUserBlockRequest(BaseModel):
+    is_blocked: bool
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class AdminProductResponse(BaseModel):
+    id: uuid.UUID
+    title: str
+    description: str | None
+    product_type: ProductType
+    price_pac: Decimal | None
+    grant_condition: ProductGrantCondition
+    grant_deposit_threshold: Decimal | None
+    external_url: str | None
+    is_published: bool
+    sort_order: int
+
+
+class AdminProductListResponse(BaseModel):
+    products: list[AdminProductResponse]
+
+
+class AdminProductCreateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    product_type: ProductType
+    price_pac: Decimal | None = Field(default=None, ge=0)
+    grant_condition: ProductGrantCondition = ProductGrantCondition.NONE
+    grant_deposit_threshold: Decimal | None = Field(default=None, ge=0)
+    external_url: str | None = Field(default=None, max_length=2_000)
+    is_published: bool = True
+    sort_order: int = Field(default=0, ge=0)
+
+
+class AdminProductUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    product_type: ProductType | None = None
+    price_pac: Decimal | None = Field(default=None, ge=0)
+    grant_condition: ProductGrantCondition | None = None
+    grant_deposit_threshold: Decimal | None = Field(default=None, ge=0)
+    external_url: str | None = Field(default=None, max_length=2_000)
+    is_published: bool | None = None
+    sort_order: int | None = Field(default=None, ge=0)
+
+
+class AdminSignalAssetResponse(BaseModel):
+    id: uuid.UUID
+    asset_key: str
+    label: str
+    category: str
+    is_otc: bool
+    is_popular: bool
+    is_active: bool
+    sort_order: int
+
+
+class AdminSignalAssetListResponse(BaseModel):
+    assets: list[AdminSignalAssetResponse]
+
+
+class AdminSignalAssetCreateRequest(BaseModel):
+    asset_key: str = Field(min_length=1, max_length=64, pattern=r"^[A-Z0-9_./-]+$")
+    label: str = Field(min_length=1, max_length=128)
+    category: str = Field(min_length=1, max_length=64)
+    is_otc: bool = False
+    is_popular: bool = False
+    sort_order: int = Field(default=0, ge=0)
+
+
+class AdminSignalAssetUpdateRequest(BaseModel):
+    label: str | None = Field(default=None, min_length=1, max_length=128)
+    category: str | None = Field(default=None, min_length=1, max_length=64)
+    is_otc: bool | None = None
+    is_popular: bool | None = None
+    is_active: bool | None = None
+    sort_order: int | None = Field(default=None, ge=0)
+
+
+class AdminSettingsResponse(BaseModel):
+    minimum_first_deposit: Decimal
+    premium_minimum_deposit: Decimal
+    premium_daily_limit: int
+    manager_telegram_url: str | None
+
+
+class AdminSettingsUpdateRequest(BaseModel):
+    minimum_first_deposit: Decimal = Field(gt=0)
+    premium_minimum_deposit: Decimal = Field(gt=0)
+    premium_daily_limit: int = Field(ge=0)
+    manager_telegram_url: str | None = Field(default=None, max_length=1_024)

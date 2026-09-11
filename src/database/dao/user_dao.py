@@ -1,6 +1,7 @@
 from typing import Self
 
 import datetime
+import uuid
 
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
@@ -17,6 +18,11 @@ class UserDAO:
         stmt = select(User).where(User.telegram_id == telegram_id)
         query = await self.session.execute(stmt)
         return query.scalar_one_or_none()
+
+    async def get_for_update(self, user_id: uuid.UUID) -> User | None:
+        return await self.session.scalar(
+            select(User).where(User.id == user_id).with_for_update()
+        )
 
     async def create(
         self: Self,
