@@ -24,5 +24,9 @@ PYTHONPATH=src uv run uvicorn api.app:app --reload
 
 The unauthenticated health endpoint is available at `GET /api/health`.
 
+The Mini App shell is at `/app/`; the separate administration surface is at
+`/admin/`. Production provider and storage setup is described in
+[`docs/OPERATIONS.md`](docs/OPERATIONS.md).
+
 Do not commit production tokens, database passwords, provider secrets, or a
 real `.env` file.

@@ -78,6 +78,14 @@ class IntegrationConfig(BaseModel):
     telegram_init_data_max_age_seconds: int = 86_400
 
 
+class StorageConfig(BaseModel):
+    endpoint_url: str | None = None
+    bucket: str | None = None
+    access_key_id: SecretStr | None = None
+    secret_access_key: SecretStr | None = None
+    region: str | None = None
+
+
 @final
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
@@ -94,6 +102,7 @@ class Config(BaseSettings):
     redis: RedisConfig = Field(default_factory=RedisConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     integrations: IntegrationConfig = Field(default_factory=IntegrationConfig)
+    storage: StorageConfig = Field(default_factory=StorageConfig)
 
 
 @lru_cache
