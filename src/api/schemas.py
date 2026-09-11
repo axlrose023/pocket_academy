@@ -206,6 +206,45 @@ class AdminUserBlockRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=500)
 
 
+class AdminUserSummaryResponse(BaseModel):
+    telegram_id: int
+    name: str | None
+    username: str | None
+    status: str
+    total_deposits: Decimal
+    registered_at: datetime.datetime | None
+
+
+class AdminUserListResponse(BaseModel):
+    users: list[AdminUserSummaryResponse]
+
+
+class AdminUserDiaryEntryResponse(BaseModel):
+    entry_day: datetime.date
+    profitable_trades: int
+    losing_trades: int
+    mood: int
+    comment: str | None
+
+
+class AdminUserDiarySeriesPointResponse(BaseModel):
+    period_start: datetime.date
+    entry_count: int
+    average_profitable_trades: Decimal | None
+    average_losing_trades: Decimal | None
+    average_mood: Decimal | None
+
+
+class AdminUserDiaryReportResponse(BaseModel):
+    entry_count: int
+    average_profitable_trades: Decimal | None
+    average_losing_trades: Decimal | None
+    average_mood: Decimal | None
+    mood_distribution: tuple[int, int, int, int, int]
+    entries: list[AdminUserDiaryEntryResponse]
+    series: list[AdminUserDiarySeriesPointResponse]
+
+
 class AdminProductResponse(BaseModel):
     id: uuid.UUID
     title: str
@@ -340,6 +379,8 @@ class AdminDashboardResponse(BaseModel):
     webapp_opens: int
     diary_profitable_trades: int
     diary_losing_trades: int
+    diary_average_profitable_trades: Decimal | None
+    diary_average_losing_trades: Decimal | None
     diary_average_mood: Decimal | None
     diary_mood_distribution: tuple[int, int, int, int, int]
     registration_to_first_deposit_rate: Decimal | None

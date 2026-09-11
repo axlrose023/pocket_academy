@@ -39,8 +39,11 @@ class AdminDashboardTotals:
 
 @dataclass(frozen=True, slots=True)
 class AdminDiaryStatistics:
+    entry_count: int
     profitable_trades: int
     losing_trades: int
+    average_profitable_trades: Decimal | None
+    average_losing_trades: Decimal | None
     average_mood: Decimal | None
     mood_distribution: tuple[int, int, int, int, int]
 
@@ -57,6 +60,29 @@ class AdminDashboardSeriesPoint:
     signals: int
     diary_entries: int
     webapp_opens: int
+
+
+@dataclass(frozen=True, slots=True)
+class AdminUserSummary:
+    user: User
+    total_deposits: Decimal
+    registered_at: datetime.datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class AdminDiarySeriesPoint:
+    period_start: datetime.date
+    entry_count: int
+    average_profitable_trades: Decimal | None
+    average_losing_trades: Decimal | None
+    average_mood: Decimal | None
+
+
+@dataclass(frozen=True, slots=True)
+class AdminUserDiaryReport:
+    statistics: AdminDiaryStatistics
+    entries: tuple[DiaryEntry, ...]
+    series: tuple[AdminDiarySeriesPoint, ...]
 
 
 class AdminDAO:
@@ -101,6 +127,121 @@ class AdminDAO:
             select(AttributionClick)
             .where(AttributionClick.telegram_id == telegram_id)
             .order_by(AttributionClick.recorded_at.desc())
+        )
+
+    async def list_users(
+        self,
+        *,
+        registered_from: datetime.datetime | None,
+        registered_until: datetime.datetime | None,
+        minimum_deposits: Decimal | None,
+        maximum_deposits: Decimal | None,
+        limit: int,
+    ) -> list[AdminUserSummary]:
+        deposit_totals = (
+            select(
+                Deposit.user_id.label("user_id"),
+                func.coalesce(func.sum(Deposit.amount), 0).label("total_deposits"),
+            )
+            .group_by(Deposit.user_id)
+            .subquery()
+        )
+        registrations = (
+            select(
+                BrokerAccount.user_id.label("user_id"),
+                func.min(BrokerAccount.registered_at).label("registered_at"),
+            )
+            .group_by(BrokerAccount.user_id)
+            .subquery()
+        )
+        total_deposits = func.coalesce(deposit_totals.c.total_deposits, 0)
+        statement = (
+            select(User, total_deposits, registrations.c.registered_at)
+            .outerjoin(deposit_totals, deposit_totals.c.user_id == User.id)
+            .outerjoin(registrations, registrations.c.user_id == User.id)
+            .order_by(
+                registrations.c.registered_at.desc().nulls_last(), User.telegram_id
+            )
+            .limit(limit)
+        )
+        if registered_from is not None:
+            statement = statement.where(
+                registrations.c.registered_at >= registered_from
+            )
+        if registered_until is not None:
+            statement = statement.where(
+                registrations.c.registered_at < registered_until
+            )
+        if minimum_deposits is not None:
+            statement = statement.where(total_deposits >= minimum_deposits)
+        if maximum_deposits is not None:
+            statement = statement.where(total_deposits < maximum_deposits)
+        rows = await self._session.execute(statement)
+        return [
+            AdminUserSummary(
+                user=user,
+                total_deposits=Decimal(total_deposits),
+                registered_at=registered_at,
+            )
+            for user, total_deposits, registered_at in rows
+        ]
+
+    async def user_diary_report(
+        self,
+        *,
+        user_id: uuid.UUID,
+        day_from: datetime.date,
+        day_until: datetime.date,
+        granularity: str,
+    ) -> AdminUserDiaryReport:
+        conditions = (
+            DiaryEntry.user_id == user_id,
+            DiaryEntry.entry_day >= day_from,
+            DiaryEntry.entry_day <= day_until,
+        )
+        statistics = await self._diary_statistics(*conditions)
+        entries = tuple(
+            (
+                await self._session.scalars(
+                    select(DiaryEntry)
+                    .where(*conditions)
+                    .order_by(DiaryEntry.entry_day.desc())
+                    .limit(100)
+                )
+            ).all()
+        )
+        period = _date_period(DiaryEntry.entry_day, granularity)
+        rows = await self._session.execute(
+            select(
+                period,
+                func.count(),
+                func.avg(DiaryEntry.profitable_trades),
+                func.avg(DiaryEntry.losing_trades),
+                func.avg(DiaryEntry.mood),
+            )
+            .where(*conditions)
+            .group_by(period)
+            .order_by(period)
+        )
+        return AdminUserDiaryReport(
+            statistics=statistics,
+            entries=entries,
+            series=tuple(
+                AdminDiarySeriesPoint(
+                    period_start=period_start,
+                    entry_count=int(entry_count),
+                    average_profitable_trades=Decimal(average_profitable_trades),
+                    average_losing_trades=Decimal(average_losing_trades),
+                    average_mood=Decimal(average_mood),
+                )
+                for (
+                    period_start,
+                    entry_count,
+                    average_profitable_trades,
+                    average_losing_trades,
+                    average_mood,
+                ) in rows
+            ),
         )
 
     async def set_user_blocked(
@@ -234,22 +375,10 @@ class AdminDAO:
             )
             or 0
         )
-        diary_row = (
-            await self._session.execute(
-                select(
-                    func.coalesce(func.sum(DiaryEntry.profitable_trades), 0),
-                    func.coalesce(func.sum(DiaryEntry.losing_trades), 0),
-                    func.avg(DiaryEntry.mood),
-                    *[
-                        func.count().filter(DiaryEntry.mood == mood)
-                        for mood in range(1, 6)
-                    ],
-                ).where(
-                    DiaryEntry.entry_day >= day_from,
-                    DiaryEntry.entry_day <= day_until,
-                )
-            )
-        ).one()
+        diary_statistics = await self._diary_statistics(
+            DiaryEntry.entry_day >= day_from,
+            DiaryEntry.entry_day <= day_until,
+        )
         webapp_opens = int(
             await self._session.scalar(
                 select(func.count()).where(
@@ -280,14 +409,7 @@ class AdminDAO:
             diary_entries=diary_entries,
             active_users=active_users,
             webapp_opens=webapp_opens,
-            diary_statistics=AdminDiaryStatistics(
-                profitable_trades=int(diary_row[0] or 0),
-                losing_trades=int(diary_row[1] or 0),
-                average_mood=(
-                    Decimal(diary_row[2]) if diary_row[2] is not None else None
-                ),
-                mood_distribution=tuple(int(value or 0) for value in diary_row[3:]),
-            ),
+            diary_statistics=diary_statistics,
             series=tuple(
                 await self._dashboard_series(
                     occurred_from=occurred_from,
@@ -378,6 +500,33 @@ class AdminDAO:
             AdminDashboardSeriesPoint(period_start=period_start, **metrics)
             for period_start, metrics in periods.items()
         ]
+
+    async def _diary_statistics(self, *conditions) -> AdminDiaryStatistics:
+        row = (
+            await self._session.execute(
+                select(
+                    func.count(),
+                    func.coalesce(func.sum(DiaryEntry.profitable_trades), 0),
+                    func.coalesce(func.sum(DiaryEntry.losing_trades), 0),
+                    func.avg(DiaryEntry.profitable_trades),
+                    func.avg(DiaryEntry.losing_trades),
+                    func.avg(DiaryEntry.mood),
+                    *[
+                        func.count().filter(DiaryEntry.mood == mood)
+                        for mood in range(1, 6)
+                    ],
+                ).where(*conditions)
+            )
+        ).one()
+        return AdminDiaryStatistics(
+            entry_count=int(row[0] or 0),
+            profitable_trades=int(row[1] or 0),
+            losing_trades=int(row[2] or 0),
+            average_profitable_trades=(Decimal(row[3]) if row[3] is not None else None),
+            average_losing_trades=(Decimal(row[4]) if row[4] is not None else None),
+            average_mood=(Decimal(row[5]) if row[5] is not None else None),
+            mood_distribution=tuple(int(value or 0) for value in row[6:]),
+        )
 
     async def _time_series_counts(
         self,

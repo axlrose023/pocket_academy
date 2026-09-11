@@ -2,9 +2,10 @@ import datetime
 from dataclasses import dataclass
 from decimal import Decimal
 
-from database.models import Product, ProductMaterial, SignalAsset, User
+from database.models import DiaryEntry, Product, ProductMaterial, SignalAsset, User
 from database.uow import UnitOfWork
 from domain.enums import AuditAction, NotificationType, ProductGrantCondition
+from domain.statuses import UserStatus, deposit_range_for_status, resolve_status
 
 
 class AdminPermissionError(PermissionError):
@@ -32,6 +33,8 @@ class AdminDashboard:
     webapp_opens: int
     diary_profitable_trades: int
     diary_losing_trades: int
+    diary_average_profitable_trades: Decimal | None
+    diary_average_losing_trades: Decimal | None
     diary_average_mood: Decimal | None
     diary_mood_distribution: tuple[int, int, int, int, int]
     registration_to_first_deposit_rate: Decimal | None
@@ -53,6 +56,45 @@ class AdminDashboardSeriesPoint:
     signals: int
     diary_entries: int
     webapp_opens: int
+
+
+@dataclass(frozen=True, slots=True)
+class AdminUserSummary:
+    telegram_id: int
+    name: str | None
+    username: str | None
+    status: str
+    total_deposits: Decimal
+    registered_at: datetime.datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class AdminUserDiaryEntry:
+    entry_day: datetime.date
+    profitable_trades: int
+    losing_trades: int
+    mood: int
+    comment: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class AdminUserDiarySeriesPoint:
+    period_start: datetime.date
+    entry_count: int
+    average_profitable_trades: Decimal | None
+    average_losing_trades: Decimal | None
+    average_mood: Decimal | None
+
+
+@dataclass(frozen=True, slots=True)
+class AdminUserDiaryReport:
+    entry_count: int
+    average_profitable_trades: Decimal | None
+    average_losing_trades: Decimal | None
+    average_mood: Decimal | None
+    mood_distribution: tuple[int, int, int, int, int]
+    entries: tuple[AdminUserDiaryEntry, ...]
+    series: tuple[AdminUserDiarySeriesPoint, ...]
 
 
 class AdminService:
@@ -141,6 +183,10 @@ class AdminService:
             webapp_opens=totals.webapp_opens,
             diary_profitable_trades=totals.diary_statistics.profitable_trades,
             diary_losing_trades=totals.diary_statistics.losing_trades,
+            diary_average_profitable_trades=(
+                totals.diary_statistics.average_profitable_trades
+            ),
+            diary_average_losing_trades=totals.diary_statistics.average_losing_trades,
             diary_average_mood=totals.diary_statistics.average_mood,
             diary_mood_distribution=totals.diary_statistics.mood_distribution,
             registration_to_first_deposit_rate=_conversion_rate(
@@ -173,6 +219,90 @@ class AdminService:
                     webapp_opens=point.webapp_opens,
                 )
                 for point in totals.series
+            ),
+        )
+
+    async def list_users(
+        self,
+        uow: UnitOfWork,
+        *,
+        status: UserStatus | None,
+        registered_from: datetime.date | None,
+        registered_to: datetime.date | None,
+        minimum_deposits: Decimal | None,
+        maximum_deposits: Decimal | None,
+        limit: int,
+    ) -> list[AdminUserSummary]:
+        if registered_from and registered_to and registered_from > registered_to:
+            raise AdminRuleError("The start date must not be after the end date")
+        if minimum_deposits is not None and maximum_deposits is not None:
+            if minimum_deposits > maximum_deposits:
+                raise AdminRuleError(
+                    "Minimum deposits must not exceed maximum deposits"
+                )
+        if status is not None:
+            minimum_deposits, status_maximum = deposit_range_for_status(status)
+            maximum_deposits = status_maximum
+        registered_from_at = _day_start(registered_from) if registered_from else None
+        registered_until = (
+            _day_start(registered_to + datetime.timedelta(days=1))
+            if registered_to
+            else None
+        )
+        users = await uow.admin.list_users(
+            registered_from=registered_from_at,
+            registered_until=registered_until,
+            minimum_deposits=minimum_deposits,
+            maximum_deposits=maximum_deposits,
+            limit=limit,
+        )
+        return [
+            AdminUserSummary(
+                telegram_id=summary.user.telegram_id,
+                name=summary.user.full_name or summary.user.username,
+                username=summary.user.username,
+                status=resolve_status(summary.total_deposits).status.value,
+                total_deposits=summary.total_deposits,
+                registered_at=summary.registered_at,
+            )
+            for summary in users
+        ]
+
+    async def user_diary_report(
+        self,
+        uow: UnitOfWork,
+        *,
+        user: User,
+        date_from: datetime.date,
+        date_to: datetime.date,
+        granularity: str,
+    ) -> AdminUserDiaryReport:
+        if date_from > date_to:
+            raise AdminRuleError("The start date must not be after the end date")
+        if date_to - date_from > datetime.timedelta(days=366):
+            raise AdminRuleError("The reporting period must not exceed 367 days")
+        report = await uow.admin.user_diary_report(
+            user_id=user.id,
+            day_from=date_from,
+            day_until=date_to,
+            granularity=granularity,
+        )
+        return AdminUserDiaryReport(
+            entry_count=report.statistics.entry_count,
+            average_profitable_trades=report.statistics.average_profitable_trades,
+            average_losing_trades=report.statistics.average_losing_trades,
+            average_mood=report.statistics.average_mood,
+            mood_distribution=report.statistics.mood_distribution,
+            entries=tuple(_diary_entry(entry) for entry in report.entries),
+            series=tuple(
+                AdminUserDiarySeriesPoint(
+                    period_start=point.period_start,
+                    entry_count=point.entry_count,
+                    average_profitable_trades=point.average_profitable_trades,
+                    average_losing_trades=point.average_losing_trades,
+                    average_mood=point.average_mood,
+                )
+                for point in report.series
             ),
         )
 
@@ -446,3 +576,17 @@ def _conversion_rate(numerator: int, denominator: int) -> Decimal | None:
     if denominator == 0:
         return None
     return (Decimal(numerator * 100) / Decimal(denominator)).quantize(Decimal("0.01"))
+
+
+def _day_start(day: datetime.date) -> datetime.datetime:
+    return datetime.datetime.combine(day, datetime.time.min, tzinfo=datetime.UTC)
+
+
+def _diary_entry(entry: DiaryEntry) -> AdminUserDiaryEntry:
+    return AdminUserDiaryEntry(
+        entry_day=entry.entry_day,
+        profitable_trades=entry.profitable_trades,
+        losing_trades=entry.losing_trades,
+        mood=entry.mood,
+        comment=entry.comment,
+    )

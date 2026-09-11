@@ -50,6 +50,23 @@ def resolve_status(total_deposits: Decimal) -> StatusPolicy:
     )
 
 
+def deposit_range_for_status(
+    status: UserStatus,
+) -> tuple[Decimal, Decimal | None]:
+    policy_index = next(
+        index for index, policy in enumerate(STATUS_POLICIES) if policy.status == status
+    )
+    next_policy = (
+        STATUS_POLICIES[policy_index + 1]
+        if policy_index + 1 < len(STATUS_POLICIES)
+        else None
+    )
+    return (
+        STATUS_POLICIES[policy_index].minimum_deposits,
+        next_policy.minimum_deposits if next_policy is not None else None,
+    )
+
+
 def allowed_timeframes(policy: StatusPolicy) -> tuple[int, ...]:
     return tuple(
         timeframe
