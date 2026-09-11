@@ -86,5 +86,7 @@ textarea { min-height: 84px; margin-top: 12px; resize: vertical; }
 .access-overlay { position: fixed; inset: 0; z-index: 20; display: grid; padding: 20px; place-items: center; background: rgba(7, 9, 15, .82); backdrop-filter: blur(7px); }
 .access-overlay article { max-width: 360px; padding: 24px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; }
 .access-overlay h2 { margin-bottom: 10px; }
+.notification-toast { position: fixed; top: 16px; right: 16px; left: 16px; z-index: 30; max-width: 520px; padding: 14px 16px; margin: auto; color: var(--text); background: #263b34; border: 1px solid #407360; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, .28); }
+.notification-toast[hidden] { display: none; }
 
 @keyframes fade { from { opacity: .3; transform: translateY(4px); } to { opacity: 1; transform: none; } }

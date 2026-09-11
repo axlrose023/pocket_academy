@@ -52,10 +52,23 @@ const setScreen = (screen) => {
   });
 };
 
-const showOverlay = (title, message) => {
+const showOverlay = (title, message, managerUrl = null) => {
   $('#overlay-title').textContent = title;
   $('#overlay-message').textContent = message;
+  const managerButton = $('#overlay-manager');
+  managerButton.hidden = !managerUrl;
+  managerButton.onclick = managerUrl ? () => openExternal(managerUrl) : null;
   $('#access-overlay').hidden = false;
+};
+
+let notificationToastTimer;
+const showNotificationToast = (notification) => {
+  if (!notification) return;
+  const toast = $('#notification-toast');
+  toast.textContent = `${notification.title}: ${notification.body}`;
+  toast.hidden = false;
+  clearTimeout(notificationToastTimer);
+  notificationToastTimer = setTimeout(() => { toast.hidden = true; }, 6_000);
 };
 
 const api = async (path, options = {}) => {
@@ -452,12 +465,19 @@ const renderAll = () => {
 };
 
 const refreshProfileAndProducts = async () => {
-  const [profile, products] = await Promise.all([api('/api/me'), api('/api/products')]);
+  const [profile, products, notifications] = await Promise.all([
+    api('/api/me'),
+    api('/api/products'),
+    api('/api/me/notifications'),
+  ]);
   state.profile = profile;
   state.products = products.products;
+  state.notifications = notifications.notifications;
   renderHome();
   renderProfile();
   renderProducts();
+  renderNotifications();
+  showNotificationToast(state.notifications.find((notification) => !notification.read_at));
   renderProfileCollections();
 };
 
@@ -664,8 +684,15 @@ const bootstrap = async () => {
     state.signals = signals.signals;
     state.selectedAssetId = state.assets[0]?.id || null;
     renderAll();
+    showNotificationToast(
+      state.notifications.find((notification) => !notification.read_at),
+    );
     if (profile.is_blocked) {
-      showOverlay('Доступ временно ограничен', 'Сигналы будут доступны после урегулирования вывода средств.');
+      showOverlay(
+        'Доступ временно ограничен',
+        'Для восстановления отмените заявку на вывод или пополните счёт на сумму вывода. Либо свяжитесь с менеджером.',
+        profile.manager_telegram_url,
+      );
     }
   } catch (error) {
     showOverlay('Не удалось открыть Academy', error.message);
