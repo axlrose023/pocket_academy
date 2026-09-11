@@ -1,0 +1,57 @@
+services:
+  bot: &bot
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /app/src
+    depends_on:
+      db:
+        condition: service_healthy
+      keydb:
+        condition: service_healthy
+
+  taskiq-worker:
+    <<: *bot
+    command: [uv, run, taskiq, worker, -fsd, src.tskiq.broker:broker, -w, "4", --max-fails, "1", --use-process-pool, --max-process-pool-processes, "4"]
+
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    user: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${BOT_POSTGRES__USER}
+      POSTGRES_PASSWORD: ${BOT_POSTGRES__PASSWORD}
+      POSTGRES_DB: ${BOT_POSTGRES__DB}
+    expose:
+      - 5432
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD", "pg_isready" ]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  keydb:
+    image: eqalpha/keydb
+    restart: unless-stopped
+    expose:
+      - 6379
+    ports:
+      - "6379:6379"
+    volumes:
+      - keydb-data:/data
+    healthcheck:
+      test: [ "CMD", "keydb-cli", "ping" ]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  db-data:
+  keydb-data:
