@@ -14,6 +14,10 @@
 5. Run controlled test events for registration, FD, RD, withdrawal, cancelled
    withdrawal, duplicate delivery, and reordered delivery.
 
+The initial migration supplies EUR/USD, GBP/USD, USD/JPY, EUR/CHF, and their
+OTC variants. Review and maintain this list in the admin interface before the
+first release.
+
 ## S3-compatible content storage
 
 Product materials use `storage_key` already. Enable object storage only when
