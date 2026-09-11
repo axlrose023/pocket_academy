@@ -30,6 +30,10 @@ than storing public bucket URLs in products.
 - Keep `.env` outside Git and rotate any token that was exposed.
 - Monitor non-2xx webhook responses, rejected events, and duplicate-event
   volume.
+- Redis/KeyDB also applies a fixed 60-second window to Telegram WebApp and
+  webhook traffic. Defaults are 120 authenticated WebApp requests and 60
+  webhook requests per credential per window; set the `BOT_RATE_LIMIT__*`
+  values only when provider traffic requires it.
 
 ## Scheduled operations
 
