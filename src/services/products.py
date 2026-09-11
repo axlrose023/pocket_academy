@@ -21,6 +21,8 @@ class ProductService:
             raise ProductRuleError("Product is unavailable")
         if product.price_pac is None:
             raise ProductRuleError("Product cannot be purchased")
+        if product.price_pac == 0 and product.grant_condition == "none":
+            raise ProductRuleError("Product is already available")
         if await uow.products.has_access(user_id=user_id, product_id=product_id):
             raise ProductRuleError("Product is already available")
         if (

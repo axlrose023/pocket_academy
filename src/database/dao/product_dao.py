@@ -1,10 +1,15 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import exists, select
+from sqlalchemy import and_, exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import Product, ProductMaterial, UserProductAccess
+
+FREE_PRODUCT_ACCESS = and_(
+    Product.price_pac == 0,
+    Product.grant_condition == "none",
+)
 
 
 class ProductDAO:
@@ -26,7 +31,10 @@ class ProductDAO:
             UserProductAccess.product_id == Product.id,
         )
         rows = await self._session.execute(
-            select(Product, access_exists.label("has_access"))
+            select(
+                Product,
+                or_(access_exists, FREE_PRODUCT_ACCESS).label("has_access"),
+            )
             .where(Product.is_published.is_(True))
             .order_by(Product.sort_order, Product.created_at)
         )
@@ -48,11 +56,17 @@ class ProductDAO:
     ) -> Product | None:
         return await self._session.scalar(
             select(Product)
-            .join(UserProductAccess, UserProductAccess.product_id == Product.id)
+            .outerjoin(
+                UserProductAccess,
+                and_(
+                    UserProductAccess.product_id == Product.id,
+                    UserProductAccess.user_id == user_id,
+                ),
+            )
             .where(
                 Product.id == product_id,
                 Product.is_published.is_(True),
-                UserProductAccess.user_id == user_id,
+                or_(UserProductAccess.id.is_not(None), FREE_PRODUCT_ACCESS),
             )
         )
 
