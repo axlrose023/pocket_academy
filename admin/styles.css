@@ -50,6 +50,10 @@ td strong { display: block; color: var(--text); }
 .user-stats div { padding: 10px; background: var(--card); border-radius: 8px; }
 .user-stats span { display: block; color: var(--muted); font-size: 11px; }
 .user-stats strong { display: block; margin-top: 4px; }
+.user-diary { padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--line); }
+.user-diary h4 { margin: 0 0 8px; font-size: 14px; }
+.user-diary details { margin-top: 14px; color: var(--muted); }
+.user-diary summary { cursor: pointer; color: var(--text); }
 .toast { position: fixed; right: 18px; bottom: 18px; z-index: 10; max-width: 340px; padding: 13px 16px; color: #fff; background: #263b34; border: 1px solid #407360; border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .28); }
 .toast.is-error { background: #4b2831; border-color: #98515f; }
 .toast[hidden], .access-overlay[hidden] { display: none; }

@@ -206,7 +206,7 @@ class AdminDAO:
                     select(DiaryEntry)
                     .where(*conditions)
                     .order_by(DiaryEntry.entry_day.desc())
-                    .limit(100)
+                    .limit(367)
                 )
             ).all()
         )
@@ -366,15 +366,6 @@ class AdminDAO:
             )
             or 0
         )
-        diary_entries = int(
-            await self._session.scalar(
-                select(func.count()).where(
-                    DiaryEntry.entry_day >= day_from,
-                    DiaryEntry.entry_day <= day_until,
-                )
-            )
-            or 0
-        )
         diary_statistics = await self._diary_statistics(
             DiaryEntry.entry_day >= day_from,
             DiaryEntry.entry_day <= day_until,
@@ -406,7 +397,7 @@ class AdminDAO:
             repeat_deposits=int(deposit_row[2] or 0),
             repeat_deposit_amount=Decimal(deposit_row[3]),
             signals=signals,
-            diary_entries=diary_entries,
+            diary_entries=diary_statistics.entry_count,
             active_users=active_users,
             webapp_opens=webapp_opens,
             diary_statistics=diary_statistics,

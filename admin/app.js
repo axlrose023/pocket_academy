@@ -11,6 +11,7 @@ const state = {
   materials: [],
   products: [],
   user: null,
+  userDiary: null,
 };
 
 class ApiError extends Error {}
@@ -19,6 +20,7 @@ const $ = (selector) => document.querySelector(selector);
 const money = (value) => `$${Number(value || 0).toLocaleString('ru-RU')}`;
 const pac = (value) => `${Number(value || 0).toLocaleString('ru-RU')} PAC`;
 const rate = (value) => value === null ? '—' : `${Number(value).toLocaleString('ru-RU')}%`;
+const average = (value) => value === null ? '—' : Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
 const today = () => new Date().toISOString().slice(0, 10);
 
 const api = async (path, options = {}) => {
@@ -76,8 +78,8 @@ const renderDashboard = (dashboard) => {
   $('[data-metric="fd-rd-rate"]').textContent = rate(dashboard.first_to_repeat_deposit_rate);
   $('[data-metric="lead-registration-rate"]').textContent = rate(dashboard.lead_to_registration_rate);
   $('[data-metric="lead-fd-rate"]').textContent = rate(dashboard.lead_to_first_deposit_rate);
-  $('[data-metric="diary-trades"]').textContent = `${dashboard.diary_profitable_trades} / ${dashboard.diary_losing_trades}`;
-  const mood = dashboard.diary_average_mood === null ? 'Нет оценок' : `Среднее настроение ${Number(dashboard.diary_average_mood).toLocaleString('ru-RU')} · 1–5: ${dashboard.diary_mood_distribution.join(' / ')}`;
+  $('[data-metric="diary-trades"]').textContent = `${average(dashboard.diary_average_profitable_trades)} / ${average(dashboard.diary_average_losing_trades)}`;
+  const mood = dashboard.diary_average_mood === null ? 'Нет оценок' : `Среднее настроение ${average(dashboard.diary_average_mood)} · 1–5: ${dashboard.diary_mood_distribution.join(' / ')} · всего ${dashboard.diary_entries}`;
   $('[data-metric="diary-mood"]').textContent = mood;
   $('#dashboard-period').textContent = `Период: ${dashboard.date_from} — ${dashboard.date_to} UTC · ${({ day: 'по дням', week: 'по неделям', month: 'по месяцам' })[dashboard.granularity]}`;
   renderDashboardSeries(dashboard.series);
@@ -116,6 +118,130 @@ const loadDashboard = async () => {
     renderDashboard(await api(`/api/admin/dashboard?${params}`));
   } catch (error) {
     showToast(error.message, true);
+  }
+};
+
+const renderUserList = (users) => {
+  const root = $('#user-filter-list');
+  root.replaceChildren();
+  if (!users.length) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 5;
+    cell.textContent = 'Пользователи по заданным условиям не найдены.';
+    row.append(cell);
+    root.append(row);
+    return;
+  }
+  users.forEach((user) => {
+    const row = document.createElement('tr');
+    const identity = document.createElement('td');
+    const name = document.createElement('strong');
+    name.textContent = user.name || 'Без имени';
+    const handle = document.createElement('span');
+    handle.textContent = `${user.username ? `@${user.username} · ` : ''}${user.telegram_id}`;
+    identity.append(name, handle);
+    const status = document.createElement('td');
+    status.textContent = user.status;
+    const deposits = document.createElement('td');
+    deposits.textContent = money(user.total_deposits);
+    const registered = document.createElement('td');
+    registered.textContent = user.registered_at ? new Date(user.registered_at).toLocaleDateString('ru-RU') : '—';
+    const actions = document.createElement('td');
+    const open = createButton('Открыть', 'ghost-button');
+    open.addEventListener('click', () => { void loadUser(String(user.telegram_id)); });
+    actions.append(open);
+    row.append(identity, status, deposits, registered, actions);
+    root.append(row);
+  });
+};
+
+const userFilterParams = () => {
+  const form = $('#user-filter');
+  const params = new URLSearchParams({ limit: '50' });
+  ['user_status', 'registered_from', 'registered_to', 'minimum_deposits', 'maximum_deposits'].forEach((name) => {
+    const value = form.elements[name].value.trim();
+    if (value) params.set(name, value);
+  });
+  return params;
+};
+
+const loadUserList = async () => {
+  try {
+    const payload = await api(`/api/admin/users/list?${userFilterParams()}`);
+    renderUserList(payload.users);
+  } catch (error) {
+    showToast(error.message, true);
+  }
+};
+
+const renderUserDiary = (report) => {
+  if (!report) return null;
+  const section = document.createElement('section');
+  section.className = 'user-diary';
+  const heading = document.createElement('h4');
+  heading.textContent = 'Дневник трейдера · последние 30 дней';
+  const summary = document.createElement('p');
+  summary.className = 'muted';
+  summary.textContent = report.entry_count
+    ? `Записей: ${report.entry_count} · среднее профит / убыток: ${average(report.average_profitable_trades)} / ${average(report.average_losing_trades)} · настроение: ${average(report.average_mood)} · 1–5: ${report.mood_distribution.join(' / ')}`
+    : 'За последние 30 дней записей нет.';
+  section.append(heading, summary);
+  if (report.series.length) {
+    const series = document.createElement('div');
+    series.className = 'table-wrap';
+    const table = document.createElement('table');
+    const head = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    ['Неделя', 'Записи', 'Ср. профит', 'Ср. убыток', 'Настроение'].forEach((label) => {
+      const cell = document.createElement('th');
+      cell.textContent = label;
+      headRow.append(cell);
+    });
+    head.append(headRow);
+    const body = document.createElement('tbody');
+    report.series.forEach((point) => {
+      const row = document.createElement('tr');
+      [point.period_start, point.entry_count, average(point.average_profitable_trades), average(point.average_losing_trades), average(point.average_mood)].forEach((value) => {
+        const cell = document.createElement('td');
+        cell.textContent = value;
+        row.append(cell);
+      });
+      body.append(row);
+    });
+    table.append(head, body);
+    series.append(table);
+    section.append(series);
+  }
+  if (report.entries.length) {
+    const details = document.createElement('details');
+    const title = document.createElement('summary');
+    title.textContent = `Показать записи (${report.entries.length})`;
+    details.append(title);
+    report.entries.forEach((entry) => {
+      const item = document.createElement('p');
+      item.className = 'muted';
+      item.textContent = `${entry.entry_day} · +${entry.profitable_trades} / −${entry.losing_trades} · настроение ${entry.mood}${entry.comment ? ` · ${entry.comment}` : ''}`;
+      details.append(item);
+    });
+    section.append(details);
+  }
+  return section;
+};
+
+const loadUser = async (identifier) => {
+  try {
+    const params = new URLSearchParams({ identifier });
+    const user = await api(`/api/admin/users?${params}`);
+    const diary = await api(`/api/admin/users/${encodeURIComponent(String(user.telegram_id))}/diary?granularity=week`);
+    state.user = user;
+    state.userDiary = diary;
+    $('#user-identifier').value = identifier;
+    renderUser();
+  } catch (error) {
+    state.user = null;
+    state.userDiary = null;
+    $('#user-result').textContent = error.message;
   }
 };
 
@@ -190,7 +316,10 @@ const renderUser = () => {
       showToast(error.message, true);
     }
   });
-  card.append(head, stats, controls);
+  const diary = renderUserDiary(state.userDiary);
+  card.append(head, stats);
+  if (diary) card.append(diary);
+  card.append(controls);
   root.append(card);
 };
 
@@ -511,17 +640,11 @@ const saveSettings = async (event) => {
 
 const bindEvents = () => {
   $('#dashboard-filter').addEventListener('submit', (event) => { event.preventDefault(); loadDashboard(); });
-  $('#user-search').addEventListener('submit', async (event) => {
+  $('#user-search').addEventListener('submit', (event) => {
     event.preventDefault();
-    try {
-      const params = new URLSearchParams({ identifier: $('#user-identifier').value.trim() });
-      state.user = await api(`/api/admin/users?${params}`);
-      renderUser();
-    } catch (error) {
-      state.user = null;
-      $('#user-result').textContent = error.message;
-    }
+    void loadUser($('#user-identifier').value.trim());
   });
+  $('#user-filter').addEventListener('submit', (event) => { event.preventDefault(); void loadUserList(); });
   $('#product-editor').addEventListener('submit', saveProduct);
   $('#material-editor').addEventListener('submit', saveMaterial);
   $('#asset-editor').addEventListener('submit', saveAsset);
@@ -540,17 +663,19 @@ const bootstrap = async () => {
     return;
   }
   try {
-    const [dashboard, products, assets] = await Promise.all([
+    const [dashboard, products, assets, users] = await Promise.all([
       api(`/api/admin/dashboard?date_from=${$('#date-from').value}&date_to=${$('#date-to').value}&granularity=${$('#dashboard-granularity').value}`),
       api('/api/admin/products'),
       api('/api/admin/signal-assets'),
       loadSettings(),
+      api('/api/admin/users/list?limit=50'),
     ]);
     renderDashboard(dashboard);
     state.products = products.products;
     state.assets = assets.assets;
     renderProducts();
     renderAssets();
+    renderUserList(users.users);
   } catch (error) {
     showOverlay('Не удалось открыть админку', error.message);
   }
