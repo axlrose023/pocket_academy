@@ -337,6 +337,7 @@ class AdminDashboardResponse(BaseModel):
     signals: int
     diary_entries: int
     active_users: int
+    webapp_opens: int
     diary_profitable_trades: int
     diary_losing_trades: int
     diary_average_mood: Decimal | None
@@ -358,3 +359,4 @@ class AdminDashboardSeriesPointResponse(BaseModel):
     repeat_deposit_amount: Decimal
     signals: int
     diary_entries: int
+    webapp_opens: int

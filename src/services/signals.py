@@ -6,6 +6,7 @@ from decimal import Decimal
 from database.models import Signal, User
 from database.uow import UnitOfWork
 from domain.clock import Clock
+from domain.enums import ActivityType
 from domain.randomizer import SignalRandomizer
 from domain.statuses import allowed_timeframes
 from services.access import AccessService, UserAccessSnapshot
@@ -73,7 +74,7 @@ class SignalService:
             raise SignalRuleError("Signal asset is unavailable")
         if premium and not overview.is_premium_available:
             raise SignalRuleError("Premium signal requires a larger deposit")
-        return await uow.signals.add(
+        signal = await uow.signals.add(
             user_id=user_id,
             asset=asset,
             timeframe_seconds=timeframe_seconds,
@@ -84,6 +85,12 @@ class SignalService:
             premium=premium,
             requested_at=now,
         )
+        await uow.engagement.add_activity(
+            user_id=user.id,
+            activity_type=ActivityType.SIGNAL_GENERATED.value,
+            occurred_at=now,
+        )
+        return signal
 
     async def overview(self, uow: UnitOfWork, *, user: User) -> UserSignalOverview:
         access = await self._access_service.snapshot(uow, user=user)

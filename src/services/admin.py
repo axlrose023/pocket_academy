@@ -29,6 +29,7 @@ class AdminDashboard:
     signals: int
     diary_entries: int
     active_users: int
+    webapp_opens: int
     diary_profitable_trades: int
     diary_losing_trades: int
     diary_average_mood: Decimal | None
@@ -51,6 +52,7 @@ class AdminDashboardSeriesPoint:
     repeat_deposit_amount: Decimal
     signals: int
     diary_entries: int
+    webapp_opens: int
 
 
 class AdminService:
@@ -136,6 +138,7 @@ class AdminService:
             signals=totals.signals,
             diary_entries=totals.diary_entries,
             active_users=totals.active_users,
+            webapp_opens=totals.webapp_opens,
             diary_profitable_trades=totals.diary_statistics.profitable_trades,
             diary_losing_trades=totals.diary_statistics.losing_trades,
             diary_average_mood=totals.diary_statistics.average_mood,
@@ -167,6 +170,7 @@ class AdminService:
                     repeat_deposit_amount=point.repeat_deposit_amount,
                     signals=point.signals,
                     diary_entries=point.diary_entries,
+                    webapp_opens=point.webapp_opens,
                 )
                 for point in totals.series
             ),

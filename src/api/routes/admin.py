@@ -70,6 +70,7 @@ async def get_dashboard(
         signals=dashboard.signals,
         diary_entries=dashboard.diary_entries,
         active_users=dashboard.active_users,
+        webapp_opens=dashboard.webapp_opens,
         diary_profitable_trades=dashboard.diary_profitable_trades,
         diary_losing_trades=dashboard.diary_losing_trades,
         diary_average_mood=dashboard.diary_average_mood,
@@ -91,6 +92,7 @@ async def get_dashboard(
                 repeat_deposit_amount=point.repeat_deposit_amount,
                 signals=point.signals,
                 diary_entries=point.diary_entries,
+                webapp_opens=point.webapp_opens,
             )
             for point in dashboard.series
         ],

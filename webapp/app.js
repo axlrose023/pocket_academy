@@ -640,6 +640,7 @@ const bootstrap = async () => {
     showOverlay('Открой приложение в Telegram', 'Для безопасной авторизации нужен Telegram Mini App.');
     return;
   }
+  void api('/api/me/activity/webapp-opened', { method: 'POST' }).catch(() => undefined);
   try {
     const [profile, diary, diaryHistory, deposits, notifications, products, assets, availability, signals] = await Promise.all([
       api('/api/me'),

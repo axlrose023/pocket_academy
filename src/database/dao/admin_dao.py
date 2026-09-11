@@ -17,6 +17,7 @@ from database.models import (
     Signal,
     SignalAsset,
     User,
+    UserActivity,
 )
 
 
@@ -31,6 +32,7 @@ class AdminDashboardTotals:
     signals: int
     diary_entries: int
     active_users: int
+    webapp_opens: int
     diary_statistics: "AdminDiaryStatistics"
     series: tuple["AdminDashboardSeriesPoint", ...]
 
@@ -54,6 +56,7 @@ class AdminDashboardSeriesPoint:
     repeat_deposit_amount: Decimal
     signals: int
     diary_entries: int
+    webapp_opens: int
 
 
 class AdminDAO:
@@ -247,11 +250,21 @@ class AdminDAO:
                 )
             )
         ).one()
-        active_users = int(
+        webapp_opens = int(
             await self._session.scalar(
                 select(func.count()).where(
-                    User.last_seen_at >= occurred_from,
-                    User.last_seen_at < occurred_until,
+                    UserActivity.activity_type == "webapp_opened",
+                    UserActivity.occurred_at >= occurred_from,
+                    UserActivity.occurred_at < occurred_until,
+                )
+            )
+            or 0
+        )
+        active_users = int(
+            await self._session.scalar(
+                select(func.count(func.distinct(UserActivity.user_id))).where(
+                    UserActivity.occurred_at >= occurred_from,
+                    UserActivity.occurred_at < occurred_until,
                 )
             )
             or 0
@@ -266,6 +279,7 @@ class AdminDAO:
             signals=signals,
             diary_entries=diary_entries,
             active_users=active_users,
+            webapp_opens=webapp_opens,
             diary_statistics=AdminDiaryStatistics(
                 profitable_trades=int(diary_row[0] or 0),
                 losing_trades=int(diary_row[1] or 0),
@@ -304,6 +318,7 @@ class AdminDAO:
                 "repeat_deposit_amount": Decimal("0"),
                 "signals": 0,
                 "diary_entries": 0,
+                "webapp_opens": 0,
             }
             for period_start in _period_starts(day_from, day_until, granularity)
         }
@@ -353,6 +368,12 @@ class AdminDAO:
             granularity=granularity,
         ):
             periods[period_start]["diary_entries"] = count
+        for period_start, count in await self._webapp_open_series(
+            occurred_from=occurred_from,
+            occurred_until=occurred_until,
+            granularity=granularity,
+        ):
+            periods[period_start]["webapp_opens"] = count
         return [
             AdminDashboardSeriesPoint(period_start=period_start, **metrics)
             for period_start, metrics in periods.items()
@@ -426,6 +447,26 @@ class AdminDAO:
         rows = await self._session.execute(
             select(period, func.count())
             .where(DiaryEntry.entry_day >= day_from, DiaryEntry.entry_day <= day_until)
+            .group_by(period)
+            .order_by(period)
+        )
+        return [(period_start, int(count)) for period_start, count in rows]
+
+    async def _webapp_open_series(
+        self,
+        *,
+        occurred_from: datetime.datetime,
+        occurred_until: datetime.datetime,
+        granularity: str,
+    ) -> list[tuple[datetime.date, int]]:
+        period = _utc_period(UserActivity.occurred_at, granularity)
+        rows = await self._session.execute(
+            select(period, func.count())
+            .where(
+                UserActivity.activity_type == "webapp_opened",
+                UserActivity.occurred_at >= occurred_from,
+                UserActivity.occurred_at < occurred_until,
+            )
             .group_by(period)
             .order_by(period)
         )

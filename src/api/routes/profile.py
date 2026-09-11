@@ -1,6 +1,6 @@
 from dishka import FromDishka
 from dishka.integrations.fastapi import inject
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response, status
 
 from api.schemas import (
     DiaryEntryRequest,
@@ -16,10 +16,24 @@ from api.schemas import (
 from api.webapp_auth import WebAppContext, get_webapp_context
 from database.models import DiaryEntry
 from domain.statuses import status_progress
+from domain.enums import ActivityType
 from services.access import AccessService
 from services.diary import DiaryService
 
 router = APIRouter(prefix="/me", tags=["webapp"])
+
+
+@router.post("/activity/webapp-opened", status_code=status.HTTP_204_NO_CONTENT)
+async def record_webapp_open(
+    context: WebAppContext = Depends(get_webapp_context),
+) -> Response:
+    await context.uow.engagement.add_activity(
+        user_id=context.user.id,
+        activity_type=ActivityType.WEBAPP_OPENED.value,
+        occurred_at=context.clock.now(),
+    )
+    await context.uow.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("", response_model=UserProfileResponse)

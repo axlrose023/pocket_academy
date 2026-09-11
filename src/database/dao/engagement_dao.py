@@ -5,7 +5,7 @@ from sqlalchemy import exists, literal, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import DiaryEntry, Notification, User
+from database.models import DiaryEntry, Notification, User, UserActivity
 
 
 class EngagementDAO:
@@ -129,6 +129,21 @@ class EngagementDAO:
             )
         )
         return int(result.rowcount or 0)
+
+    async def add_activity(
+        self,
+        *,
+        user_id: uuid.UUID,
+        activity_type: str,
+        occurred_at: datetime.datetime,
+    ) -> UserActivity:
+        activity = UserActivity(
+            user_id=user_id,
+            activity_type=activity_type,
+            occurred_at=occurred_at,
+        )
+        self._session.add(activity)
+        return activity
 
     async def list_notifications(
         self, *, user_id: uuid.UUID, limit: int

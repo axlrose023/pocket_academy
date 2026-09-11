@@ -71,6 +71,7 @@ const renderDashboard = (dashboard) => {
   $('[data-metric="signals"]').textContent = dashboard.signals;
   $('[data-metric="diary-entries"]').textContent = dashboard.diary_entries;
   $('[data-metric="active-users"]').textContent = dashboard.active_users;
+  $('[data-metric="webapp-opens"]').textContent = dashboard.webapp_opens;
   $('[data-metric="registration-fd-rate"]').textContent = rate(dashboard.registration_to_first_deposit_rate);
   $('[data-metric="fd-rd-rate"]').textContent = rate(dashboard.first_to_repeat_deposit_rate);
   $('[data-metric="lead-registration-rate"]').textContent = rate(dashboard.lead_to_registration_rate);
@@ -93,6 +94,7 @@ const renderDashboardSeries = (series) => {
       point.registrations,
       `${point.first_deposits} · ${money(point.first_deposit_amount)}`,
       `${point.repeat_deposits} · ${money(point.repeat_deposit_amount)}`,
+      point.webapp_opens,
       point.signals,
       point.diary_entries,
     ].forEach((value) => {
