@@ -1,21 +1,42 @@
+x-app: &app
+  build:
+    context: .
+  env_file:
+    - ${BOT_ENV_FILE:-.env}
+  environment:
+    PYTHONPATH: /app/src
+
 services:
-  bot: &bot
-    build:
-      context: .
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      PYTHONPATH: /app/src
+  migrate:
+    <<: *app
+    command: ["uv", "run", "--no-sync", "alembic", "upgrade", "head"]
     depends_on:
       db:
         condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *app
+    command: ["uv", "run", "--no-sync", "uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    restart: unless-stopped
+    expose:
+      - "8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  bot: &bot
+    <<: *app
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
       keydb:
         condition: service_healthy
 
   taskiq-worker:
     <<: *bot
-    command: [uv, run, taskiq, worker, -fsd, src.tskiq.broker:broker, -w, "4", --max-fails, "1", --use-process-pool, --max-process-pool-processes, "4"]
+    command: [uv, run, --no-sync, taskiq, worker, -fsd, src.tskiq.broker:broker, -w, "1", --max-fails, "1"]
 
   db:
     image: postgres:15

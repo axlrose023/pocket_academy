@@ -4,13 +4,19 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.base import DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage
 
-from config import get_config
+from config import Config
 
-config = get_config()
 
-bot_default_properties = DefaultBotProperties(parse_mode=ParseMode.HTML)
-bot = Bot(token=config.bot.token, default=bot_default_properties)
+def create_bot(config: Config) -> Bot:
+    return Bot(
+        token=config.bot.require_token(),
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
 
-key_builder = DefaultKeyBuilder(with_destiny=True)
-storage = RedisStorage.from_url(config.redis.dsn, key_builder=key_builder)
-dp = Dispatcher(storage=storage)
+
+def create_dispatcher(config: Config) -> Dispatcher:
+    storage = RedisStorage.from_url(
+        config.redis.dsn,
+        key_builder=DefaultKeyBuilder(with_destiny=True),
+    )
+    return Dispatcher(storage=storage)

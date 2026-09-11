@@ -18,7 +18,7 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-project
+    uv sync --frozen --no-install-project --no-dev
 
 COPY ./src /app/src
 COPY ./pyproject.toml /app
@@ -29,7 +29,7 @@ RUN chmod +x /app/entrypoint.sh
 
 # Sync the project
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen
+    uv sync --frozen --no-dev
 
 # Run the application.
 CMD ["./entrypoint.sh"]

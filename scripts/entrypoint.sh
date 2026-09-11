@@ -3,9 +3,9 @@
 export PYTHONPATH=/app/src
 
 # Run Migrations
-echo "Running Migrations..."
-uv run alembic upgrade head
+echo "Running migrations..."
+uv run --no-sync alembic upgrade head
 
 # Start bot in polling mode
 echo "Starting bot..."
-uv run python -m main
+exec uv run --no-sync python -m main

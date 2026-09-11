@@ -11,4 +11,3 @@ def setup_logging():
     logging.basicConfig(level=logging_level, stream=sys.stdout)
     logging.getLogger("httpcore").setLevel(logging.INFO)
     logging.getLogger("httpx").setLevel(logging.INFO)
-
