@@ -62,6 +62,7 @@ const readNullableNumber = (form, name) => {
 };
 
 const renderDashboard = (dashboard) => {
+  $('[data-metric="leads"]').textContent = dashboard.leads;
   $('[data-metric="registrations"]').textContent = dashboard.registrations;
   $('[data-metric="first-deposits"]').textContent = dashboard.first_deposits;
   $('[data-metric="first-deposit-amount"]').textContent = money(dashboard.first_deposit_amount);
@@ -72,13 +73,42 @@ const renderDashboard = (dashboard) => {
   $('[data-metric="active-users"]').textContent = dashboard.active_users;
   $('[data-metric="registration-fd-rate"]').textContent = rate(dashboard.registration_to_first_deposit_rate);
   $('[data-metric="fd-rd-rate"]').textContent = rate(dashboard.first_to_repeat_deposit_rate);
-  $('#dashboard-period').textContent = `Период: ${dashboard.date_from} — ${dashboard.date_to} UTC`;
+  $('[data-metric="lead-registration-rate"]').textContent = rate(dashboard.lead_to_registration_rate);
+  $('[data-metric="lead-fd-rate"]').textContent = rate(dashboard.lead_to_first_deposit_rate);
+  $('[data-metric="diary-trades"]').textContent = `${dashboard.diary_profitable_trades} / ${dashboard.diary_losing_trades}`;
+  const mood = dashboard.diary_average_mood === null ? 'Нет оценок' : `Среднее настроение ${Number(dashboard.diary_average_mood).toLocaleString('ru-RU')} · 1–5: ${dashboard.diary_mood_distribution.join(' / ')}`;
+  $('[data-metric="diary-mood"]').textContent = mood;
+  $('#dashboard-period').textContent = `Период: ${dashboard.date_from} — ${dashboard.date_to} UTC · ${({ day: 'по дням', week: 'по неделям', month: 'по месяцам' })[dashboard.granularity]}`;
+  renderDashboardSeries(dashboard.series);
+};
+
+const renderDashboardSeries = (series) => {
+  const root = $('#dashboard-series');
+  root.replaceChildren();
+  series.forEach((point) => {
+    const row = document.createElement('tr');
+    [
+      point.period_start,
+      point.leads,
+      point.registrations,
+      `${point.first_deposits} · ${money(point.first_deposit_amount)}`,
+      `${point.repeat_deposits} · ${money(point.repeat_deposit_amount)}`,
+      point.signals,
+      point.diary_entries,
+    ].forEach((value) => {
+      const cell = document.createElement('td');
+      cell.textContent = value;
+      row.append(cell);
+    });
+    root.append(row);
+  });
 };
 
 const loadDashboard = async () => {
   const params = new URLSearchParams({
     date_from: $('#date-from').value,
     date_to: $('#date-to').value,
+    granularity: $('#dashboard-granularity').value,
   });
   try {
     renderDashboard(await api(`/api/admin/dashboard?${params}`));
@@ -103,6 +133,14 @@ const renderUser = () => {
   handle.className = 'muted';
   handle.textContent = `${user.username ? `@${user.username} · ` : ''}${user.telegram_id}`;
   title.append(name, handle);
+  const identifiers = document.createElement('p');
+  identifiers.className = 'muted';
+  identifiers.textContent = [
+    user.trader_ids.length ? `Trader: ${user.trader_ids.join(', ')}` : null,
+    user.click_id ? `Click: ${user.click_id}` : null,
+    user.link_chat ? `Chat: ${user.link_chat}` : null,
+  ].filter(Boolean).join(' · ') || 'Связки Chatterfy и Pocket Option пока нет';
+  title.append(identifiers);
   const access = document.createElement('span');
   access.className = user.is_blocked ? 'muted' : '';
   access.textContent = user.is_blocked ? 'Доступ ограничен' : 'Доступ активен';
@@ -474,7 +512,8 @@ const bindEvents = () => {
   $('#user-search').addEventListener('submit', async (event) => {
     event.preventDefault();
     try {
-      state.user = await api(`/api/admin/users/${encodeURIComponent($('#user-identifier').value.trim())}`);
+      const params = new URLSearchParams({ identifier: $('#user-identifier').value.trim() });
+      state.user = await api(`/api/admin/users?${params}`);
       renderUser();
     } catch (error) {
       state.user = null;
@@ -500,7 +539,7 @@ const bootstrap = async () => {
   }
   try {
     const [dashboard, products, assets] = await Promise.all([
-      api(`/api/admin/dashboard?date_from=${$('#date-from').value}&date_to=${$('#date-to').value}`),
+      api(`/api/admin/dashboard?date_from=${$('#date-from').value}&date_to=${$('#date-to').value}&granularity=${$('#dashboard-granularity').value}`),
       api('/api/admin/products'),
       api('/api/admin/signal-assets'),
       loadSettings(),

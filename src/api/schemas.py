@@ -189,6 +189,9 @@ class AdminUserResponse(BaseModel):
     telegram_id: int
     name: str | None
     username: str | None
+    trader_ids: list[str]
+    click_id: str | None
+    link_chat: str | None
     total_deposits: Decimal
     pac_balance: Decimal
     status: str
@@ -324,6 +327,8 @@ class AdminSettingsUpdateRequest(BaseModel):
 class AdminDashboardResponse(BaseModel):
     date_from: datetime.date
     date_to: datetime.date
+    granularity: str
+    leads: int
     registrations: int
     first_deposits: int
     first_deposit_amount: Decimal
@@ -332,5 +337,24 @@ class AdminDashboardResponse(BaseModel):
     signals: int
     diary_entries: int
     active_users: int
+    diary_profitable_trades: int
+    diary_losing_trades: int
+    diary_average_mood: Decimal | None
+    diary_mood_distribution: tuple[int, int, int, int, int]
     registration_to_first_deposit_rate: Decimal | None
     first_to_repeat_deposit_rate: Decimal | None
+    lead_to_registration_rate: Decimal | None
+    lead_to_first_deposit_rate: Decimal | None
+    series: list["AdminDashboardSeriesPointResponse"]
+
+
+class AdminDashboardSeriesPointResponse(BaseModel):
+    period_start: datetime.date
+    leads: int
+    registrations: int
+    first_deposits: int
+    first_deposit_amount: Decimal
+    repeat_deposits: int
+    repeat_deposit_amount: Decimal
+    signals: int
+    diary_entries: int

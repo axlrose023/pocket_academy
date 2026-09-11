@@ -13,9 +13,10 @@
       <header class="page-header"><div><p class="eyebrow">POCKET ACADEMY / ADMIN</p><h1>Операционная панель</h1></div><p class="muted">Доступ для администраторов</p></header>
 
       <section class="panel">
-        <form class="date-filter" id="dashboard-filter"><label>С<input id="date-from" type="date" required /></label><label>По<input id="date-to" type="date" required /></label><button type="submit">Обновить</button></form>
+        <form class="date-filter" id="dashboard-filter"><label>С<input id="date-from" type="date" required /></label><label>По<input id="date-to" type="date" required /></label><label>Группировка<select id="dashboard-granularity"><option value="day">Дни</option><option value="week">Недели</option><option value="month">Месяцы</option></select></label><button type="submit">Обновить</button></form>
         <p class="muted" id="dashboard-period">Загрузка отчёта…</p>
         <div class="metrics-grid">
+          <article class="metric"><p>Лиды Chatterfy</p><strong data-metric="leads">—</strong></article>
           <article class="metric"><p>Регистрации</p><strong data-metric="registrations">—</strong></article>
           <article class="metric"><p>FD</p><strong data-metric="first-deposits">—</strong><span data-metric="first-deposit-amount">—</span></article>
           <article class="metric"><p>RD</p><strong data-metric="repeat-deposits">—</strong><span data-metric="repeat-deposit-amount">—</span></article>
@@ -24,13 +25,17 @@
           <article class="metric"><p>Активные пользователи</p><strong data-metric="active-users">—</strong></article>
           <article class="metric"><p>Регистрация → FD</p><strong data-metric="registration-fd-rate">—</strong></article>
           <article class="metric"><p>FD → RD</p><strong data-metric="fd-rd-rate">—</strong></article>
+          <article class="metric"><p>Лид → регистрация</p><strong data-metric="lead-registration-rate">—</strong></article>
+          <article class="metric"><p>Лид → FD</p><strong data-metric="lead-fd-rate">—</strong></article>
+          <article class="metric"><p>Дневник: профит / убыток</p><strong data-metric="diary-trades">—</strong><span data-metric="diary-mood">—</span></article>
         </div>
+        <div class="table-wrap"><table><thead><tr><th>Период</th><th>Лиды</th><th>Регистрации</th><th>FD</th><th>RD</th><th>Сигналы</th><th>Дневники</th></tr></thead><tbody id="dashboard-series"></tbody></table></div>
       </section>
 
       <section class="panel">
         <h2>Пользователь</h2>
-        <form class="inline-form" id="user-search"><input id="user-identifier" placeholder="Telegram ID или @username" required /><button type="submit">Найти</button></form>
-        <div id="user-result"><p class="muted">Введи Telegram ID или username, чтобы посмотреть доступ пользователя.</p></div>
+        <form class="inline-form" id="user-search"><input id="user-identifier" placeholder="Telegram ID, @username, trader ID, click ID или link_chat" required /><button type="submit">Найти</button></form>
+        <div id="user-result"><p class="muted">Найди пользователя по Telegram, связке Chatterfy или ID трейдера.</p></div>
       </section>
 
       <section class="management-grid">

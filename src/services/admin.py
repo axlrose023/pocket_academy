@@ -19,6 +19,8 @@ class AdminRuleError(ValueError):
 class AdminDashboard:
     date_from: datetime.date
     date_to: datetime.date
+    granularity: str
+    leads: int
     registrations: int
     first_deposits: int
     first_deposit_amount: Decimal
@@ -27,8 +29,28 @@ class AdminDashboard:
     signals: int
     diary_entries: int
     active_users: int
+    diary_profitable_trades: int
+    diary_losing_trades: int
+    diary_average_mood: Decimal | None
+    diary_mood_distribution: tuple[int, int, int, int, int]
     registration_to_first_deposit_rate: Decimal | None
     first_to_repeat_deposit_rate: Decimal | None
+    lead_to_registration_rate: Decimal | None
+    lead_to_first_deposit_rate: Decimal | None
+    series: tuple["AdminDashboardSeriesPoint", ...]
+
+
+@dataclass(frozen=True, slots=True)
+class AdminDashboardSeriesPoint:
+    period_start: datetime.date
+    leads: int
+    registrations: int
+    first_deposits: int
+    first_deposit_amount: Decimal
+    repeat_deposits: int
+    repeat_deposit_amount: Decimal
+    signals: int
+    diary_entries: int
 
 
 class AdminService:
@@ -78,6 +100,7 @@ class AdminService:
         *,
         date_from: datetime.date,
         date_to: datetime.date,
+        granularity: str,
     ) -> AdminDashboard:
         if date_from > date_to:
             raise AdminRuleError("The start date must not be after the end date")
@@ -98,10 +121,13 @@ class AdminService:
             occurred_until=occurred_until,
             day_from=date_from,
             day_until=date_to,
+            granularity=granularity,
         )
         return AdminDashboard(
             date_from=date_from,
             date_to=date_to,
+            granularity=granularity,
+            leads=totals.leads,
             registrations=totals.registrations,
             first_deposits=totals.first_deposits,
             first_deposit_amount=totals.first_deposit_amount,
@@ -110,6 +136,10 @@ class AdminService:
             signals=totals.signals,
             diary_entries=totals.diary_entries,
             active_users=totals.active_users,
+            diary_profitable_trades=totals.diary_statistics.profitable_trades,
+            diary_losing_trades=totals.diary_statistics.losing_trades,
+            diary_average_mood=totals.diary_statistics.average_mood,
+            diary_mood_distribution=totals.diary_statistics.mood_distribution,
             registration_to_first_deposit_rate=_conversion_rate(
                 totals.first_deposits,
                 totals.registrations,
@@ -117,6 +147,28 @@ class AdminService:
             first_to_repeat_deposit_rate=_conversion_rate(
                 totals.repeat_deposits,
                 totals.first_deposits,
+            ),
+            lead_to_registration_rate=_conversion_rate(
+                totals.registrations,
+                totals.leads,
+            ),
+            lead_to_first_deposit_rate=_conversion_rate(
+                totals.first_deposits,
+                totals.leads,
+            ),
+            series=tuple(
+                AdminDashboardSeriesPoint(
+                    period_start=point.period_start,
+                    leads=point.leads,
+                    registrations=point.registrations,
+                    first_deposits=point.first_deposits,
+                    first_deposit_amount=point.first_deposit_amount,
+                    repeat_deposits=point.repeat_deposits,
+                    repeat_deposit_amount=point.repeat_deposit_amount,
+                    signals=point.signals,
+                    diary_entries=point.diary_entries,
+                )
+                for point in totals.series
             ),
         )
 

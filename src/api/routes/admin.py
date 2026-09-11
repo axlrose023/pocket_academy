@@ -2,6 +2,7 @@ import datetime
 import uuid
 from collections.abc import Mapping
 from enum import Enum
+from typing import Literal
 
 from dishka import FromDishka
 from dishka.integrations.fastapi import inject
@@ -10,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from api.admin_auth import AdminContext, get_admin_context
 from api.schemas import (
     AdminDashboardResponse,
+    AdminDashboardSeriesPointResponse,
     AdminProductCreateRequest,
     AdminProductListResponse,
     AdminProductMaterialCreateRequest,
@@ -42,6 +44,7 @@ async def get_dashboard(
     clock: FromDishka[Clock],
     date_from: datetime.date | None = None,
     date_to: datetime.date | None = None,
+    granularity: Literal["day", "week", "month"] = "day",
     context: AdminContext = Depends(get_admin_context),
 ) -> AdminDashboardResponse:
     today = clock.now().date()
@@ -50,12 +53,15 @@ async def get_dashboard(
             context.webapp.uow,
             date_from=date_from or today,
             date_to=date_to or today,
+            granularity=granularity,
         )
     except AdminRuleError as error:
         raise _rule_error(error) from error
     return AdminDashboardResponse(
         date_from=dashboard.date_from,
         date_to=dashboard.date_to,
+        granularity=dashboard.granularity,
+        leads=dashboard.leads,
         registrations=dashboard.registrations,
         first_deposits=dashboard.first_deposits,
         first_deposit_amount=dashboard.first_deposit_amount,
@@ -64,11 +70,47 @@ async def get_dashboard(
         signals=dashboard.signals,
         diary_entries=dashboard.diary_entries,
         active_users=dashboard.active_users,
+        diary_profitable_trades=dashboard.diary_profitable_trades,
+        diary_losing_trades=dashboard.diary_losing_trades,
+        diary_average_mood=dashboard.diary_average_mood,
+        diary_mood_distribution=dashboard.diary_mood_distribution,
         registration_to_first_deposit_rate=(
             dashboard.registration_to_first_deposit_rate
         ),
         first_to_repeat_deposit_rate=dashboard.first_to_repeat_deposit_rate,
+        lead_to_registration_rate=dashboard.lead_to_registration_rate,
+        lead_to_first_deposit_rate=dashboard.lead_to_first_deposit_rate,
+        series=[
+            AdminDashboardSeriesPointResponse(
+                period_start=point.period_start,
+                leads=point.leads,
+                registrations=point.registrations,
+                first_deposits=point.first_deposits,
+                first_deposit_amount=point.first_deposit_amount,
+                repeat_deposits=point.repeat_deposits,
+                repeat_deposit_amount=point.repeat_deposit_amount,
+                signals=point.signals,
+                diary_entries=point.diary_entries,
+            )
+            for point in dashboard.series
+        ],
     )
+
+
+@router.get("/users", response_model=AdminUserResponse)
+@inject
+async def find_user(
+    identifier: str,
+    access_service: FromDishka[AccessService],
+    context: AdminContext = Depends(get_admin_context),
+) -> AdminUserResponse:
+    user = await context.webapp.uow.admin.find_user(identifier)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User was not found",
+        )
+    return await _user_response(context, user, access_service)
 
 
 @router.get("/users/{identifier}", response_model=AdminUserResponse)
@@ -386,10 +428,14 @@ async def _user_response(
     access_service: AccessService,
 ) -> AdminUserResponse:
     access = await access_service.snapshot(context.webapp.uow, user=user)
+    attribution = await context.webapp.uow.admin.latest_attribution(user.telegram_id)
     return AdminUserResponse(
         telegram_id=user.telegram_id,
         name=user.full_name or user.username,
         username=user.username,
+        trader_ids=await context.webapp.uow.admin.user_trader_ids(user.id),
+        click_id=attribution.click_id if attribution else None,
+        link_chat=attribution.link_chat if attribution else None,
         total_deposits=access.total_deposits,
         pac_balance=await context.webapp.uow.pac_ledger.balance(user.id),
         status=access.status_policy.status.value,
