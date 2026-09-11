@@ -254,3 +254,18 @@ class AdminSettingsUpdateRequest(BaseModel):
     premium_minimum_deposit: Decimal = Field(gt=0)
     premium_daily_limit: int = Field(ge=0)
     manager_telegram_url: str | None = Field(default=None, max_length=1_024)
+
+
+class AdminDashboardResponse(BaseModel):
+    date_from: datetime.date
+    date_to: datetime.date
+    registrations: int
+    first_deposits: int
+    first_deposit_amount: Decimal
+    repeat_deposits: int
+    repeat_deposit_amount: Decimal
+    signals: int
+    diary_entries: int
+    active_users: int
+    registration_to_first_deposit_rate: Decimal | None
+    first_to_repeat_deposit_rate: Decimal | None

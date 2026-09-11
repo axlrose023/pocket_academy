@@ -1,9 +1,33 @@
+import datetime
 import uuid
+from dataclasses import dataclass
+from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import AuditLog, Product, SignalAsset, User
+from database.models import (
+    AuditLog,
+    BrokerAccount,
+    Deposit,
+    DiaryEntry,
+    Product,
+    Signal,
+    SignalAsset,
+    User,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class AdminDashboardTotals:
+    registrations: int
+    first_deposits: int
+    first_deposit_amount: Decimal
+    repeat_deposits: int
+    repeat_deposit_amount: Decimal
+    signals: int
+    diary_entries: int
+    active_users: int
 
 
 class AdminDAO:
@@ -70,3 +94,77 @@ class AdminDAO:
         )
         self._session.add(audit_log)
         return audit_log
+
+    async def dashboard_totals(
+        self,
+        *,
+        occurred_from: datetime.datetime,
+        occurred_until: datetime.datetime,
+        day_from: datetime.date,
+        day_until: datetime.date,
+    ) -> AdminDashboardTotals:
+        registrations = int(
+            await self._session.scalar(
+                select(func.count()).where(
+                    BrokerAccount.registered_at >= occurred_from,
+                    BrokerAccount.registered_at < occurred_until,
+                )
+            )
+            or 0
+        )
+        deposit_row = (
+            await self._session.execute(
+                select(
+                    func.count().filter(Deposit.kind == "first"),
+                    func.coalesce(
+                        func.sum(Deposit.amount).filter(Deposit.kind == "first"),
+                        0,
+                    ),
+                    func.count().filter(Deposit.kind == "repeat"),
+                    func.coalesce(
+                        func.sum(Deposit.amount).filter(Deposit.kind == "repeat"),
+                        0,
+                    ),
+                ).where(
+                    Deposit.occurred_at >= occurred_from,
+                    Deposit.occurred_at < occurred_until,
+                )
+            )
+        ).one()
+        signals = int(
+            await self._session.scalar(
+                select(func.count()).where(
+                    Signal.requested_at >= occurred_from,
+                    Signal.requested_at < occurred_until,
+                )
+            )
+            or 0
+        )
+        diary_entries = int(
+            await self._session.scalar(
+                select(func.count()).where(
+                    DiaryEntry.entry_day >= day_from,
+                    DiaryEntry.entry_day <= day_until,
+                )
+            )
+            or 0
+        )
+        active_users = int(
+            await self._session.scalar(
+                select(func.count()).where(
+                    User.last_seen_at >= occurred_from,
+                    User.last_seen_at < occurred_until,
+                )
+            )
+            or 0
+        )
+        return AdminDashboardTotals(
+            registrations=registrations,
+            first_deposits=int(deposit_row[0] or 0),
+            first_deposit_amount=Decimal(deposit_row[1]),
+            repeat_deposits=int(deposit_row[2] or 0),
+            repeat_deposit_amount=Decimal(deposit_row[3]),
+            signals=signals,
+            diary_entries=diary_entries,
+            active_users=active_users,
+        )

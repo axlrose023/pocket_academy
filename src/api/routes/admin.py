@@ -1,3 +1,4 @@
+import datetime
 import uuid
 from collections.abc import Mapping
 from enum import Enum
@@ -8,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from api.admin_auth import AdminContext, get_admin_context
 from api.schemas import (
+    AdminDashboardResponse,
     AdminProductCreateRequest,
     AdminProductListResponse,
     AdminProductResponse,
@@ -22,10 +24,47 @@ from api.schemas import (
     AdminUserResponse,
 )
 from database.models import Product, SignalAsset, User
+from domain.clock import Clock
 from services.access import AccessService
 from services.admin import AdminRuleError, AdminService
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get("/dashboard", response_model=AdminDashboardResponse)
+@inject
+async def get_dashboard(
+    admin_service: FromDishka[AdminService],
+    clock: FromDishka[Clock],
+    date_from: datetime.date | None = None,
+    date_to: datetime.date | None = None,
+    context: AdminContext = Depends(get_admin_context),
+) -> AdminDashboardResponse:
+    today = clock.now().date()
+    try:
+        dashboard = await admin_service.dashboard(
+            context.webapp.uow,
+            date_from=date_from or today,
+            date_to=date_to or today,
+        )
+    except AdminRuleError as error:
+        raise _rule_error(error) from error
+    return AdminDashboardResponse(
+        date_from=dashboard.date_from,
+        date_to=dashboard.date_to,
+        registrations=dashboard.registrations,
+        first_deposits=dashboard.first_deposits,
+        first_deposit_amount=dashboard.first_deposit_amount,
+        repeat_deposits=dashboard.repeat_deposits,
+        repeat_deposit_amount=dashboard.repeat_deposit_amount,
+        signals=dashboard.signals,
+        diary_entries=dashboard.diary_entries,
+        active_users=dashboard.active_users,
+        registration_to_first_deposit_rate=(
+            dashboard.registration_to_first_deposit_rate
+        ),
+        first_to_repeat_deposit_rate=dashboard.first_to_repeat_deposit_rate,
+    )
 
 
 @router.get("/users/{identifier}", response_model=AdminUserResponse)

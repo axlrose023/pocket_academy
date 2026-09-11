@@ -1,3 +1,5 @@
+import datetime
+from dataclasses import dataclass
 from decimal import Decimal
 
 from database.models import Product, SignalAsset, User
@@ -11,6 +13,22 @@ class AdminPermissionError(PermissionError):
 
 class AdminRuleError(ValueError):
     pass
+
+
+@dataclass(frozen=True, slots=True)
+class AdminDashboard:
+    date_from: datetime.date
+    date_to: datetime.date
+    registrations: int
+    first_deposits: int
+    first_deposit_amount: Decimal
+    repeat_deposits: int
+    repeat_deposit_amount: Decimal
+    signals: int
+    diary_entries: int
+    active_users: int
+    registration_to_first_deposit_rate: Decimal | None
+    first_to_repeat_deposit_rate: Decimal | None
 
 
 class AdminService:
@@ -37,6 +55,54 @@ class AdminService:
                 AuditAction.BLOCK_USER if blocked else AuditAction.UNBLOCK_USER
             ).value,
             payload={"reason": reason} if blocked else {},
+        )
+
+    async def dashboard(
+        self,
+        uow: UnitOfWork,
+        *,
+        date_from: datetime.date,
+        date_to: datetime.date,
+    ) -> AdminDashboard:
+        if date_from > date_to:
+            raise AdminRuleError("The start date must not be after the end date")
+        if date_to - date_from > datetime.timedelta(days=366):
+            raise AdminRuleError("The reporting period must not exceed 367 days")
+        occurred_from = datetime.datetime.combine(
+            date_from,
+            datetime.time.min,
+            tzinfo=datetime.UTC,
+        )
+        occurred_until = datetime.datetime.combine(
+            date_to + datetime.timedelta(days=1),
+            datetime.time.min,
+            tzinfo=datetime.UTC,
+        )
+        totals = await uow.admin.dashboard_totals(
+            occurred_from=occurred_from,
+            occurred_until=occurred_until,
+            day_from=date_from,
+            day_until=date_to,
+        )
+        return AdminDashboard(
+            date_from=date_from,
+            date_to=date_to,
+            registrations=totals.registrations,
+            first_deposits=totals.first_deposits,
+            first_deposit_amount=totals.first_deposit_amount,
+            repeat_deposits=totals.repeat_deposits,
+            repeat_deposit_amount=totals.repeat_deposit_amount,
+            signals=totals.signals,
+            diary_entries=totals.diary_entries,
+            active_users=totals.active_users,
+            registration_to_first_deposit_rate=_conversion_rate(
+                totals.first_deposits,
+                totals.registrations,
+            ),
+            first_to_repeat_deposit_rate=_conversion_rate(
+                totals.repeat_deposits,
+                totals.first_deposits,
+            ),
         )
 
     async def create_product(
@@ -221,3 +287,9 @@ def _apply_changes(
         raise AdminRuleError("Unexpected mutable fields")
     for field_name, value in changes.items():
         setattr(entity, field_name, value)
+
+
+def _conversion_rate(numerator: int, denominator: int) -> Decimal | None:
+    if denominator == 0:
+        return None
+    return (Decimal(numerator * 100) / Decimal(denominator)).quantize(Decimal("0.01"))
