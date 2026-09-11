@@ -301,6 +301,19 @@ class PocketOptionEventService:
                 continue
             await self.process(uow, event=event, postback=postback)
 
+    async def retry_pending(self, uow: UnitOfWork, *, limit: int) -> int:
+        events = await uow.external_events.list_received_pocket_option_events(
+            limit=limit
+        )
+        processed_count = 0
+        for event in events:
+            postback = self._parse_normalized(event)
+            if postback is None:
+                continue
+            if await self.process(uow, event=event, postback=postback):
+                processed_count += 1
+        return processed_count
+
     async def _process_once(
         self,
         uow: UnitOfWork,

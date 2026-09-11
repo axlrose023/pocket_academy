@@ -1,11 +1,11 @@
 import datetime
 import uuid
 
-from sqlalchemy import select, update
+from sqlalchemy import exists, literal, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import DiaryEntry, Notification
+from database.models import DiaryEntry, Notification, User
 
 
 class EngagementDAO:
@@ -94,6 +94,41 @@ class EngagementDAO:
         )
         self._session.add(notification)
         return notification
+
+    async def add_diary_reminders(self, *, entry_day: datetime.date) -> int:
+        missing_entry = ~exists(
+            select(DiaryEntry.id).where(
+                DiaryEntry.user_id == User.id,
+                DiaryEntry.entry_day == entry_day,
+            )
+        )
+        recipients = select(
+            User.id,
+            literal("diary_reminder"),
+            literal("Trading diary reminder"),
+            literal("Fill in today's diary entry and keep your PAC streak going."),
+            literal(entry_day),
+        ).where(User.last_seen_at.is_not(None), missing_entry)
+        statement = insert(Notification).from_select(
+            [
+                Notification.user_id,
+                Notification.notification_type,
+                Notification.title,
+                Notification.body,
+                Notification.reminder_day,
+            ],
+            recipients,
+        )
+        result = await self._session.execute(
+            statement.on_conflict_do_nothing(
+                index_elements=[
+                    Notification.user_id,
+                    Notification.notification_type,
+                    Notification.reminder_day,
+                ]
+            )
+        )
+        return int(result.rowcount or 0)
 
     async def list_notifications(
         self, *, user_id: uuid.UUID, limit: int

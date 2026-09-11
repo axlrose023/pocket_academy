@@ -39,6 +39,11 @@ services:
     command:
       ["uv", "run", "--no-sync", "taskiq", "worker", "tskiq.broker:broker", "tskiq.tasks", "--workers", "1", "--max-fails", "1"]
 
+  taskiq-scheduler:
+    <<: *bot
+    command:
+      ["uv", "run", "--no-sync", "taskiq", "scheduler", "--skip-first-run", "tskiq.scheduler:scheduler", "tskiq.tasks"]
+
   db:
     image: postgres:15
     restart: unless-stopped

@@ -30,3 +30,19 @@ than storing public bucket URLs in products.
 - Keep `.env` outside Git and rotate any token that was exposed.
 - Monitor non-2xx webhook responses, rejected events, and duplicate-event
   volume.
+
+## Scheduled operations
+
+`taskiq-worker` executes the queued tasks and `taskiq-scheduler` enqueues two
+UTC schedules. Keep both services running:
+
+- every 10 minutes, received Pocket Option events are retried in chronological
+  order (up to 100 events per run), allowing a delayed Chatterfy attribution or
+  registration to unblock an earlier event;
+- at 18:00 UTC, users who have opened Pocket Academy but have not completed
+  today's diary receive one in-app diary reminder. The database unique key
+  makes repeated scheduler runs safe.
+
+The scheduler starts with `--skip-first-run` so a deploy does not execute a
+scheduled operation immediately. It does not send direct Telegram messages;
+the WebApp notification centre is the defined delivery channel.

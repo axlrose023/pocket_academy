@@ -61,9 +61,8 @@ class ExternalEventDAO:
         *,
         trader_id: str | None = None,
         click_id: str | None = None,
+        limit: int | None = None,
     ) -> list[ExternalEvent]:
-        if trader_id is None and click_id is None:
-            raise ValueError("A trader ID or click ID is required")
         statement = select(ExternalEvent).where(
             ExternalEvent.provider == "pocket_option",
             ExternalEvent.processing_status == "received",
@@ -76,13 +75,10 @@ class ExternalEventDAO:
             statement = statement.where(
                 ExternalEvent.payload["_normalized"]["click_id"].astext == click_id
             )
-        return list(
-            (
-                await self._session.scalars(
-                    statement.order_by(
-                        ExternalEvent.occurred_at,
-                        ExternalEvent.received_at,
-                    )
-                )
-            ).all()
+        statement = statement.order_by(
+            ExternalEvent.occurred_at,
+            ExternalEvent.received_at,
         )
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list((await self._session.scalars(statement)).all())

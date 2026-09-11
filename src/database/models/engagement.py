@@ -23,6 +23,13 @@ class Notification(Base):
         Index(
             "notifications_user_read_created_idx", "user_id", "read_at", "created_at"
         ),
+        Index(
+            "notifications_diary_reminder_day_key",
+            "user_id",
+            "notification_type",
+            "reminder_day",
+            unique=True,
+        ),
         CheckConstraint(
             "notification_type IN ('registration', 'deposit', 'product_access', "
             "'status_changed', 'access_blocked', 'access_restored', "
@@ -38,6 +45,7 @@ class Notification(Base):
     notification_type: Mapped[str] = mapped_column(String(32))
     title: Mapped[str] = mapped_column(String(255))
     body: Mapped[str] = mapped_column(Text)
+    reminder_day: Mapped[datetime.date | None] = mapped_column(Date)
     read_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
 
 
