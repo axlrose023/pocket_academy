@@ -46,6 +46,7 @@
             <button type="submit" id="product-submit">Создать товар</button>
           </form>
           <div class="table-wrap"><table><thead><tr><th>Товар</th><th>Доступ</th><th></th></tr></thead><tbody id="product-list"></tbody></table></div>
+          <section class="materials-editor" id="materials-editor" hidden><div class="section-heading"><h3 id="materials-title">Уроки</h3><button class="ghost-button" id="cancel-material-edit" hidden>Отмена</button></div><form class="editor" id="material-editor"><div class="form-grid"><label>Название<input name="title" maxlength="255" required /></label><label>Тип<select name="content_type"><option value="pdf">PDF</option><option value="video">Видео</option><option value="link">Ссылка</option></select></label></div><label>Внешний URL<input name="external_url" type="url" maxlength="2000" /></label><label>S3 storage key<input name="storage_key" maxlength="1024" placeholder="academy/course-1/lesson-1.pdf" /></label><label>Порядок<input name="sort_order" type="number" min="0" value="0" /></label><button type="submit" id="material-submit">Добавить урок</button></form><div class="table-wrap"><table><thead><tr><th>Материал</th><th>Источник</th><th></th></tr></thead><tbody id="material-admin-list"></tbody></table></div></section>
         </article>
 
         <article class="panel">

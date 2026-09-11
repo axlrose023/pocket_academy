@@ -34,6 +34,8 @@ button { padding: 10px 13px; color: #fff; background: var(--accent); border: 0; 
 .check { display: flex !important; grid-template-columns: auto 1fr; align-items: center; gap: 8px !important; color: var(--text) !important; }
 .check input { width: auto; }
 .table-wrap { overflow-x: auto; }
+.materials-editor { padding-top: 18px; margin-top: 22px; border-top: 1px solid var(--line); }
+.materials-editor[hidden] { display: none; }
 table { width: 100%; margin-top: 20px; border-collapse: collapse; }
 td, th { padding: 11px 8px; text-align: left; border-bottom: 1px solid var(--line); }
 th { color: var(--muted); font-size: 12px; font-weight: 600; }

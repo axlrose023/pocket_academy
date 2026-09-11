@@ -6,7 +6,9 @@ telegram?.expand();
 const state = {
   assets: [],
   editingAsset: null,
+  editingMaterial: null,
   editingProduct: null,
+  materials: [],
   products: [],
   user: null,
 };
@@ -122,12 +124,16 @@ const renderUser = () => {
   reason.placeholder = 'Причина ручной блокировки';
   reason.maxLength = 500;
   reason.value = user.manual_block_reason || '';
-  const button = createButton(user.is_manually_blocked ? 'Снять ручную блокировку' : 'Заблокировать вручную', user.is_manually_blocked ? 'ghost-button' : 'danger-button');
+  const nextBlock = !user.is_blocked;
+  const button = createButton(
+    nextBlock ? 'Заблокировать вручную' : 'Разблокировать вручную',
+    nextBlock ? 'danger-button' : 'ghost-button',
+  );
   button.type = 'submit';
   controls.append(reason, button);
   controls.addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (!user.is_manually_blocked && !reason.value.trim()) {
+    if (nextBlock && !reason.value.trim()) {
       showToast('Укажи причину блокировки.', true);
       return;
     }
@@ -135,7 +141,7 @@ const renderUser = () => {
     try {
       state.user = await api(`/api/admin/users/${encodeURIComponent(String(user.telegram_id))}/block`, {
         method: 'PATCH',
-        body: JSON.stringify({ is_blocked: !user.is_manually_blocked, reason: reason.value.trim() || null }),
+        body: JSON.stringify({ is_blocked: nextBlock, reason: reason.value.trim() || null }),
       });
       renderUser();
       showToast('Доступ пользователя обновлён.');
@@ -188,15 +194,18 @@ const productPayload = (form) => ({
 
 const resetProductEditor = () => {
   state.editingProduct = null;
+  state.materials = [];
+  state.editingMaterial = null;
   const form = $('#product-editor');
   form.reset();
   form.elements.is_published.checked = true;
   form.elements.sort_order.value = 0;
   $('#product-submit').textContent = 'Создать товар';
   $('#cancel-product-edit').hidden = true;
+  $('#materials-editor').hidden = true;
 };
 
-const startProductEdit = (product) => {
+const startProductEdit = async (product) => {
   state.editingProduct = product;
   const form = $('#product-editor');
   Object.entries(product).forEach(([name, value]) => {
@@ -206,6 +215,9 @@ const startProductEdit = (product) => {
   });
   $('#product-submit').textContent = 'Сохранить товар';
   $('#cancel-product-edit').hidden = false;
+  $('#materials-editor').hidden = false;
+  $('#materials-title').textContent = `Уроки: ${product.title}`;
+  await loadMaterials(product);
   form.scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
@@ -240,6 +252,103 @@ const archiveProduct = async (product) => {
     state.products = (await api('/api/admin/products')).products;
     renderProducts();
     showToast('Товар отправлен в архив.');
+  } catch (error) {
+    showToast(error.message, true);
+  }
+};
+
+const renderMaterials = () => {
+  const root = $('#material-admin-list');
+  root.replaceChildren();
+  state.materials.forEach((material) => {
+    const row = document.createElement('tr');
+    const info = document.createElement('td');
+    const title = document.createElement('strong');
+    title.textContent = material.title;
+    const detail = document.createElement('span');
+    detail.textContent = material.content_type;
+    info.append(title, detail);
+    const source = document.createElement('td');
+    source.textContent = material.external_url ? 'Внешняя ссылка' : 'S3 key';
+    const actions = document.createElement('td');
+    actions.className = 'row-actions';
+    const edit = createButton('Изменить', 'ghost-button');
+    edit.addEventListener('click', () => startMaterialEdit(material));
+    const remove = createButton('Удалить', 'danger-button');
+    remove.addEventListener('click', () => deleteMaterial(material));
+    actions.append(edit, remove);
+    row.append(info, source, actions);
+    root.append(row);
+  });
+};
+
+const loadMaterials = async (product) => {
+  try {
+    state.materials = (await api(`/api/admin/products/${product.id}/materials`)).materials;
+    renderMaterials();
+  } catch (error) {
+    showToast(error.message, true);
+  }
+};
+
+const materialPayload = (form) => ({
+  title: form.elements.title.value.trim(),
+  content_type: form.elements.content_type.value,
+  external_url: form.elements.external_url.value.trim() || null,
+  storage_key: form.elements.storage_key.value.trim() || null,
+  sort_order: Number(form.elements.sort_order.value || 0),
+});
+
+const resetMaterialEditor = () => {
+  state.editingMaterial = null;
+  const form = $('#material-editor');
+  form.reset();
+  form.elements.sort_order.value = 0;
+  $('#material-submit').textContent = 'Добавить урок';
+  $('#cancel-material-edit').hidden = true;
+};
+
+const startMaterialEdit = (material) => {
+  state.editingMaterial = material;
+  const form = $('#material-editor');
+  Object.entries(material).forEach(([name, value]) => {
+    if (form.elements[name]) form.elements[name].value = value ?? '';
+  });
+  $('#material-submit').textContent = 'Сохранить урок';
+  $('#cancel-material-edit').hidden = false;
+};
+
+const saveMaterial = async (event) => {
+  event.preventDefault();
+  if (!state.editingProduct) return;
+  const form = event.currentTarget;
+  const button = $('#material-submit');
+  button.disabled = true;
+  try {
+    const payload = materialPayload(form);
+    if (state.editingMaterial) {
+      await api(`/api/admin/products/${state.editingProduct.id}/materials/${state.editingMaterial.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      showToast('Урок обновлён.');
+    } else {
+      await api(`/api/admin/products/${state.editingProduct.id}/materials`, { method: 'POST', body: JSON.stringify(payload) });
+      showToast('Урок добавлен.');
+    }
+    await loadMaterials(state.editingProduct);
+    resetMaterialEditor();
+  } catch (error) {
+    showToast(error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+};
+
+const deleteMaterial = async (material) => {
+  if (!state.editingProduct || !window.confirm(`Удалить «${material.title}»?`)) return;
+  try {
+    await api(`/api/admin/products/${state.editingProduct.id}/materials/${material.id}`, { method: 'DELETE' });
+    await loadMaterials(state.editingProduct);
+    resetMaterialEditor();
+    showToast('Урок удалён.');
   } catch (error) {
     showToast(error.message, true);
   }
@@ -373,9 +482,11 @@ const bindEvents = () => {
     }
   });
   $('#product-editor').addEventListener('submit', saveProduct);
+  $('#material-editor').addEventListener('submit', saveMaterial);
   $('#asset-editor').addEventListener('submit', saveAsset);
   $('#settings-editor').addEventListener('submit', saveSettings);
   $('#cancel-product-edit').addEventListener('click', resetProductEditor);
+  $('#cancel-material-edit').addEventListener('click', resetMaterialEditor);
   $('#cancel-asset-edit').addEventListener('click', resetAssetEditor);
 };
 

@@ -345,11 +345,13 @@ const renderProfileCollections = () => {
       const title = document.createElement('strong');
       title.textContent = product.title;
       item.append(title);
-      if (product.external_url) {
-        const button = createButton('Открыть', 'text-button');
+      const button = createButton('Открыть', 'text-button');
+      if (product.external_url && ['group', 'bot'].includes(product.product_type)) {
         button.addEventListener('click', () => openExternal(product.external_url));
-        item.append(button);
+      } else {
+        button.addEventListener('click', () => openProductMaterials(product));
       }
+      item.append(button);
       productsRoot.append(item);
     });
   }
@@ -392,14 +394,14 @@ const renderProfileCollections = () => {
 };
 
 const productAction = (product) => {
-  if (product.is_available && product.external_url) {
+  if (product.is_available && product.external_url && ['group', 'bot'].includes(product.product_type)) {
     const button = createButton('Открыть');
     button.addEventListener('click', () => openExternal(product.external_url));
     return button;
   }
   if (product.is_available) {
-    const button = createButton('Открыто');
-    button.disabled = true;
+    const button = createButton('Открыть');
+    button.addEventListener('click', () => openProductMaterials(product));
     return button;
   }
   if (product.price_pac !== null) {
@@ -533,6 +535,41 @@ const openExternal = (url) => {
   window.open(url, '_blank', 'noopener,noreferrer');
 };
 
+const openProductMaterials = async (product) => {
+  $('#material-panel').hidden = false;
+  $('#material-panel-title').textContent = product.title;
+  const root = $('#material-list');
+  root.replaceChildren(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Загружаем материалы…' }));
+  try {
+    const payload = await api(`/api/products/${product.id}/materials`);
+    root.replaceChildren();
+    if (!payload.materials.length) {
+      root.append(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Материалы этого продукта скоро появятся.' }));
+      return;
+    }
+    payload.materials.forEach((material) => {
+      const item = document.createElement('article');
+      item.className = 'history-item';
+      const title = document.createElement('strong');
+      title.textContent = material.title;
+      item.append(title);
+      if (material.external_url) {
+        const button = createButton('Открыть', 'text-button');
+        button.addEventListener('click', () => openExternal(material.external_url));
+        item.append(button);
+      } else {
+        const note = document.createElement('span');
+        note.className = 'muted';
+        note.textContent = 'Готовится';
+        item.append(note);
+      }
+      root.append(item);
+    });
+  } catch (error) {
+    root.textContent = error.message;
+  }
+};
+
 const openNotifications = async () => {
   $('#notification-panel').hidden = false;
   try {
@@ -591,6 +628,9 @@ const bindEvents = () => {
   $('[data-action="notifications"]').addEventListener('click', openNotifications);
   $('[data-action="close-notifications"]').addEventListener('click', () => {
     $('#notification-panel').hidden = true;
+  });
+  $('[data-action="close-materials"]').addEventListener('click', () => {
+    $('#material-panel').hidden = true;
   });
 };
 
