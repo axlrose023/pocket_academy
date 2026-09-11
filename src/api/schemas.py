@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
-from domain.enums import ProductGrantCondition, ProductType
+from domain.enums import MaterialContentType, ProductGrantCondition, ProductType
 
 
 class TelegramSessionRequest(BaseModel):
@@ -123,6 +123,18 @@ class ProductPurchaseResponse(BaseModel):
     pac_balance: Decimal
 
 
+class ProductMaterialResponse(BaseModel):
+    id: uuid.UUID
+    title: str
+    content_type: MaterialContentType
+    external_url: str | None
+    sort_order: int
+
+
+class ProductMaterialListResponse(BaseModel):
+    materials: list[ProductMaterialResponse]
+
+
 class SignalAssetResponse(BaseModel):
     id: uuid.UUID
     asset_key: str
@@ -206,6 +218,36 @@ class AdminProductResponse(BaseModel):
 
 class AdminProductListResponse(BaseModel):
     products: list[AdminProductResponse]
+
+
+class AdminProductMaterialResponse(BaseModel):
+    id: uuid.UUID
+    product_id: uuid.UUID
+    title: str
+    content_type: MaterialContentType
+    storage_key: str | None
+    external_url: str | None
+    sort_order: int
+
+
+class AdminProductMaterialListResponse(BaseModel):
+    materials: list[AdminProductMaterialResponse]
+
+
+class AdminProductMaterialCreateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    content_type: MaterialContentType
+    storage_key: str | None = Field(default=None, max_length=1_024)
+    external_url: str | None = Field(default=None, max_length=2_000)
+    sort_order: int = Field(default=0, ge=0)
+
+
+class AdminProductMaterialUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    content_type: MaterialContentType | None = None
+    storage_key: str | None = Field(default=None, max_length=1_024)
+    external_url: str | None = Field(default=None, max_length=2_000)
+    sort_order: int | None = Field(default=None, ge=0)
 
 
 class AdminProductCreateRequest(BaseModel):

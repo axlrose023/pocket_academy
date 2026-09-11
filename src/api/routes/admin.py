@@ -12,6 +12,10 @@ from api.schemas import (
     AdminDashboardResponse,
     AdminProductCreateRequest,
     AdminProductListResponse,
+    AdminProductMaterialCreateRequest,
+    AdminProductMaterialListResponse,
+    AdminProductMaterialResponse,
+    AdminProductMaterialUpdateRequest,
     AdminProductResponse,
     AdminProductUpdateRequest,
     AdminSettingsResponse,
@@ -23,7 +27,7 @@ from api.schemas import (
     AdminUserBlockRequest,
     AdminUserResponse,
 )
-from database.models import Product, SignalAsset, User
+from database.models import Product, ProductMaterial, SignalAsset, User
 from domain.clock import Clock
 from services.access import AccessService
 from services.admin import AdminRuleError, AdminService
@@ -193,6 +197,104 @@ async def archive_product(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.get(
+    "/products/{product_id}/materials",
+    response_model=AdminProductMaterialListResponse,
+)
+async def list_product_materials(
+    product_id: uuid.UUID,
+    context: AdminContext = Depends(get_admin_context),
+) -> AdminProductMaterialListResponse:
+    product = await _require_product(context, product_id)
+    materials = await context.webapp.uow.admin.list_materials(product.id)
+    return AdminProductMaterialListResponse(
+        materials=[_material_response(material) for material in materials]
+    )
+
+
+@router.post(
+    "/products/{product_id}/materials",
+    response_model=AdminProductMaterialResponse,
+)
+@inject
+async def create_product_material(
+    product_id: uuid.UUID,
+    payload: AdminProductMaterialCreateRequest,
+    admin_service: FromDishka[AdminService],
+    context: AdminContext = Depends(get_admin_context),
+) -> AdminProductMaterialResponse:
+    product = await _require_product(context, product_id)
+    try:
+        material = await admin_service.create_product_material(
+            context.webapp.uow,
+            actor=context.user,
+            product=product,
+            title=payload.title,
+            content_type=payload.content_type.value,
+            storage_key=payload.storage_key,
+            external_url=payload.external_url,
+            sort_order=payload.sort_order,
+        )
+    except AdminRuleError as error:
+        raise _rule_error(error) from error
+    await context.webapp.uow.commit()
+    return _material_response(material)
+
+
+@router.patch(
+    "/products/{product_id}/materials/{material_id}",
+    response_model=AdminProductMaterialResponse,
+)
+@inject
+async def update_product_material(
+    product_id: uuid.UUID,
+    material_id: uuid.UUID,
+    payload: AdminProductMaterialUpdateRequest,
+    admin_service: FromDishka[AdminService],
+    context: AdminContext = Depends(get_admin_context),
+) -> AdminProductMaterialResponse:
+    product = await _require_product(context, product_id)
+    material = await _require_product_material(context, product, material_id)
+    changes = _plain_values(payload.model_dump(exclude_unset=True))
+    if not changes:
+        return _material_response(material)
+    try:
+        material = await admin_service.update_product_material(
+            context.webapp.uow,
+            actor=context.user,
+            product=product,
+            material=material,
+            changes=changes,
+        )
+    except AdminRuleError as error:
+        raise _rule_error(error) from error
+    await context.webapp.uow.commit()
+    return _material_response(material)
+
+
+@router.delete(
+    "/products/{product_id}/materials/{material_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+@inject
+async def delete_product_material(
+    product_id: uuid.UUID,
+    material_id: uuid.UUID,
+    admin_service: FromDishka[AdminService],
+    context: AdminContext = Depends(get_admin_context),
+) -> Response:
+    product = await _require_product(context, product_id)
+    material = await _require_product_material(context, product, material_id)
+    await admin_service.delete_product_material(
+        context.webapp.uow,
+        actor=context.user,
+        product=product,
+        material=material,
+    )
+    await context.webapp.uow.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/signal-assets", response_model=AdminSignalAssetListResponse)
 async def list_signal_assets(
     context: AdminContext = Depends(get_admin_context),
@@ -318,6 +420,20 @@ async def _require_asset(context: AdminContext, asset_id: uuid.UUID) -> SignalAs
     return asset
 
 
+async def _require_product_material(
+    context: AdminContext,
+    product: Product,
+    material_id: uuid.UUID,
+) -> ProductMaterial:
+    material = await context.webapp.uow.admin.get_material(material_id)
+    if material is None or material.product_id != product.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product material was not found",
+        )
+    return material
+
+
 def _product_response(product: Product) -> AdminProductResponse:
     return AdminProductResponse(
         id=product.id,
@@ -343,6 +459,18 @@ def _asset_response(asset: SignalAsset) -> AdminSignalAssetResponse:
         is_popular=asset.is_popular,
         is_active=asset.is_active,
         sort_order=asset.sort_order,
+    )
+
+
+def _material_response(material: ProductMaterial) -> AdminProductMaterialResponse:
+    return AdminProductMaterialResponse(
+        id=material.id,
+        product_id=material.product_id,
+        title=material.title,
+        content_type=material.content_type,
+        storage_key=material.storage_key,
+        external_url=material.external_url,
+        sort_order=material.sort_order,
     )
 
 

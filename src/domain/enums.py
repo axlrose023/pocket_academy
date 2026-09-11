@@ -57,6 +57,12 @@ class ProductAccessSource(StrEnum):
     MANUAL = "manual"
 
 
+class MaterialContentType(StrEnum):
+    PDF = "pdf"
+    VIDEO = "video"
+    LINK = "link"
+
+
 class SignalDirection(StrEnum):
     BUY = "buy"
     SELL = "sell"

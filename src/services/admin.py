@@ -2,7 +2,7 @@ import datetime
 from dataclasses import dataclass
 from decimal import Decimal
 
-from database.models import Product, SignalAsset, User
+from database.models import Product, ProductMaterial, SignalAsset, User
 from database.uow import UnitOfWork
 from domain.enums import AuditAction, NotificationType, ProductGrantCondition
 
@@ -197,6 +197,83 @@ class AdminService:
             payload={"product_id": str(product.id)},
         )
 
+    async def create_product_material(
+        self,
+        uow: UnitOfWork,
+        *,
+        actor: User,
+        product: Product,
+        title: str,
+        content_type: str,
+        storage_key: str | None,
+        external_url: str | None,
+        sort_order: int,
+    ) -> ProductMaterial:
+        material = ProductMaterial(
+            product_id=product.id,
+            title=title,
+            content_type=content_type,
+            storage_key=storage_key,
+            external_url=external_url,
+            sort_order=sort_order,
+        )
+        self._validate_material(material)
+        uow.session.add(material)
+        await uow.flush()
+        await uow.admin.add_audit_log(
+            actor_id=actor.id,
+            action=AuditAction.UPDATE_PRODUCT.value,
+            payload={"product_id": str(product.id), "material_id": str(material.id)},
+        )
+        return material
+
+    async def update_product_material(
+        self,
+        uow: UnitOfWork,
+        *,
+        actor: User,
+        product: Product,
+        material: ProductMaterial,
+        changes: dict[str, object],
+    ) -> ProductMaterial:
+        _apply_changes(
+            material,
+            changes,
+            allowed_fields={
+                "title",
+                "content_type",
+                "storage_key",
+                "external_url",
+                "sort_order",
+            },
+        )
+        self._validate_material(material)
+        await uow.admin.add_audit_log(
+            actor_id=actor.id,
+            action=AuditAction.UPDATE_PRODUCT.value,
+            payload={"product_id": str(product.id), "material_id": str(material.id)},
+        )
+        return material
+
+    async def delete_product_material(
+        self,
+        uow: UnitOfWork,
+        *,
+        actor: User,
+        product: Product,
+        material: ProductMaterial,
+    ) -> None:
+        await uow.session.delete(material)
+        await uow.admin.add_audit_log(
+            actor_id=actor.id,
+            action=AuditAction.UPDATE_PRODUCT.value,
+            payload={
+                "product_id": str(product.id),
+                "material_id": str(material.id),
+                "operation": "delete",
+            },
+        )
+
     async def update_signal_settings(
         self,
         uow: UnitOfWork,
@@ -290,9 +367,14 @@ class AdminService:
         if not has_deposit_condition:
             product.grant_deposit_threshold = None
 
+    @staticmethod
+    def _validate_material(material: ProductMaterial) -> None:
+        if material.storage_key is None and material.external_url is None:
+            raise AdminRuleError("A storage key or external URL is required")
+
 
 def _apply_changes(
-    entity: Product | SignalAsset,
+    entity: Product | ProductMaterial | SignalAsset,
     changes: dict[str, object],
     *,
     allowed_fields: set[str],

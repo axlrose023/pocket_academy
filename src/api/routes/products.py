@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from api.schemas import (
     ProductListResponse,
+    ProductMaterialListResponse,
+    ProductMaterialResponse,
     ProductPurchaseResponse,
     ProductResponse,
 )
@@ -53,6 +55,35 @@ async def purchase_product(
     return ProductPurchaseResponse(
         product_id=product_id,
         pac_balance=await context.uow.pac_ledger.balance(context.user.id),
+    )
+
+
+@router.get("/{product_id}/materials", response_model=ProductMaterialListResponse)
+async def list_product_materials(
+    product_id: uuid.UUID,
+    context: WebAppContext = Depends(get_webapp_context),
+) -> ProductMaterialListResponse:
+    product = await context.uow.products.get_accessible(
+        user_id=context.user.id,
+        product_id=product_id,
+    )
+    if product is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Product access is required",
+        )
+    materials = await context.uow.products.list_materials(product.id)
+    return ProductMaterialListResponse(
+        materials=[
+            ProductMaterialResponse(
+                id=material.id,
+                title=material.title,
+                content_type=material.content_type,
+                external_url=material.external_url,
+                sort_order=material.sort_order,
+            )
+            for material in materials
+        ]
     )
 
 

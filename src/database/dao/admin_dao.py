@@ -12,6 +12,7 @@ from database.models import (
     Deposit,
     DiaryEntry,
     Product,
+    ProductMaterial,
     Signal,
     SignalAsset,
     User,
@@ -52,6 +53,20 @@ class AdminDAO:
 
     async def get_product(self, product_id: uuid.UUID) -> Product | None:
         return await self._session.get(Product, product_id)
+
+    async def get_material(self, material_id: uuid.UUID) -> ProductMaterial | None:
+        return await self._session.get(ProductMaterial, material_id)
+
+    async def list_materials(self, product_id: uuid.UUID) -> list[ProductMaterial]:
+        return list(
+            (
+                await self._session.scalars(
+                    select(ProductMaterial)
+                    .where(ProductMaterial.product_id == product_id)
+                    .order_by(ProductMaterial.sort_order, ProductMaterial.created_at)
+                )
+            ).all()
+        )
 
     async def list_products(self) -> list[Product]:
         return list(
