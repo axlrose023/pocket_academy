@@ -149,7 +149,7 @@ class FinanceDAO:
         external_reference: str,
         amount: Decimal,
         status: str,
-        requested_at: datetime.datetime,
+        occurred_at: datetime.datetime,
         resolved_at: datetime.datetime | None,
     ) -> WithdrawalUpsertResult:
         withdrawal = await self._session.scalar(
@@ -166,22 +166,27 @@ class FinanceDAO:
                 external_reference=external_reference,
                 amount=amount,
                 status=status,
-                requested_at=requested_at,
+                requested_at=occurred_at,
                 last_external_event_id=external_event_id,
                 resolved_at=resolved_at,
             )
             self._session.add(withdrawal)
             return WithdrawalUpsertResult(withdrawal=withdrawal, was_applied=True)
-        if requested_at < withdrawal.requested_at:
+        earliest_requested_at = min(withdrawal.requested_at, occurred_at)
+        withdrawal.requested_at = earliest_requested_at
+        current_status_rank = _withdrawal_status_rank(withdrawal.status)
+        received_status_rank = _withdrawal_status_rank(status)
+        if received_status_rank < current_status_rank:
             return WithdrawalUpsertResult(withdrawal=withdrawal, was_applied=False)
-        if requested_at == withdrawal.requested_at and _withdrawal_status_rank(
-            status
-        ) <= _withdrawal_status_rank(withdrawal.status):
-            return WithdrawalUpsertResult(withdrawal=withdrawal, was_applied=False)
+        if received_status_rank == current_status_rank:
+            if status == withdrawal.status:
+                return WithdrawalUpsertResult(withdrawal=withdrawal, was_applied=False)
+            current_status_at = withdrawal.resolved_at or earliest_requested_at
+            if occurred_at <= current_status_at:
+                return WithdrawalUpsertResult(withdrawal=withdrawal, was_applied=False)
         withdrawal.last_external_event_id = external_event_id
         withdrawal.amount = amount
         withdrawal.status = status
-        withdrawal.requested_at = requested_at
         withdrawal.resolved_at = resolved_at
         return WithdrawalUpsertResult(withdrawal=withdrawal, was_applied=True)
 

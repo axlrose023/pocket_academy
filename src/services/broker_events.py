@@ -190,7 +190,7 @@ class BrokerEventService:
             external_reference=withdrawal.external_reference,
             amount=withdrawal.amount,
             status=withdrawal.status.value,
-            requested_at=withdrawal.occurred_at,
+            occurred_at=withdrawal.occurred_at,
             resolved_at=(
                 withdrawal.occurred_at
                 if withdrawal.status != WithdrawalStatus.NEW
