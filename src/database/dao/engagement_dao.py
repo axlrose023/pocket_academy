@@ -41,17 +41,20 @@ class EngagementDAO:
         ).returning(DiaryEntry)
         return (await self._session.execute(statement)).scalar_one()
 
-    async def has_diary_entry(
-        self, *, user_id: uuid.UUID, entry_day: datetime.date
-    ) -> bool:
-        return (
-            await self._session.scalar(
-                select(DiaryEntry.id).where(
-                    DiaryEntry.user_id == user_id,
-                    DiaryEntry.entry_day == entry_day,
+    async def existing_diary_days(
+        self, *, user_id: uuid.UUID, entry_days: tuple[datetime.date, ...]
+    ) -> set[datetime.date]:
+        if not entry_days:
+            return set()
+        return set(
+            (
+                await self._session.scalars(
+                    select(DiaryEntry.entry_day).where(
+                        DiaryEntry.user_id == user_id,
+                        DiaryEntry.entry_day.in_(entry_days),
+                    )
                 )
-            )
-            is not None
+            ).all()
         )
 
     async def get_diary_entry(

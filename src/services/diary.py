@@ -36,10 +36,13 @@ class DiaryService:
             mood=mood,
             comment=comment,
         )
-        if not await uow.engagement.has_diary_entry(
+        yesterday = today - datetime.timedelta(days=1)
+        day_before_yesterday = today - datetime.timedelta(days=2)
+        existing_days = await uow.engagement.existing_diary_days(
             user_id=user_id,
-            entry_day=today - datetime.timedelta(days=1),
-        ):
+            entry_days=(yesterday, day_before_yesterday),
+        )
+        if yesterday not in existing_days or day_before_yesterday in existing_days:
             return DiarySaveResult(entry=entry, reward_granted=False)
         reward_granted = await uow.pac_ledger.add_daily_reward_once(
             user_id=user_id,
