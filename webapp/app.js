@@ -136,11 +136,24 @@ const renderJourney = () => {
   const root = $('#journey-steps');
   const profile = state.profile;
   root.replaceChildren();
+  let registrationAction = null;
+  if (!profile.is_registered) {
+    registrationAction = createButton(
+      'Зарегистрироваться в Pocket Option',
+      'text-button',
+    );
+    registrationAction.addEventListener('click', () => {
+      void openPocketOptionRegistration(registrationAction, false);
+    });
+  }
   appendJourneyStep(
     root,
     '1',
     'Регистрация',
-    profile.is_registered ? '✅ Аккаунт Pocket Option подключён.' : 'Партнёрская ссылка появится после завершения настройки Pocket Option.',
+    profile.is_registered
+      ? '✅ Аккаунт Pocket Option подключён.'
+      : 'Создай торговый аккаунт по партнёрской ссылке.',
+    registrationAction,
   );
   let depositText = profile.has_deposit
     ? `✅ Первый депозит: ${dollars(profile.first_deposit_amount)}.`
@@ -148,10 +161,14 @@ const renderJourney = () => {
   if (profile.is_low_first_deposit) {
     depositText += ` Сумма меньше порога ${dollars(profile.minimum_first_deposit)}.`;
   }
-  const lowDepositNote = profile.is_low_first_deposit
-    ? Object.assign(document.createElement('span'), { className: 'text-note', textContent: 'Перерегистрация станет доступна после настройки нового click_id.' })
-    : null;
-  appendJourneyStep(root, '2', 'Первый депозит', depositText, lowDepositNote);
+  let reregistrationAction = null;
+  if (profile.is_low_first_deposit) {
+    reregistrationAction = createButton('Перерегистрироваться', 'text-button');
+    reregistrationAction.addEventListener('click', () => {
+      void openPocketOptionRegistration(reregistrationAction, true);
+    });
+  }
+  appendJourneyStep(root, '2', 'Первый депозит', depositText, reregistrationAction);
   let managerAction = null;
   if (profile.has_deposit && profile.manager_telegram_url) {
     managerAction = createButton('Написать менеджеру', 'text-button');
@@ -553,6 +570,25 @@ const openExternal = (url) => {
     return;
   }
   window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+const openPocketOptionRegistration = async (button, forceNew) => {
+  button.disabled = true;
+  try {
+    const registration = await api('/api/me/pocket-option/link', {
+      method: 'POST',
+      body: JSON.stringify({ force_new: forceNew }),
+    });
+    openExternal(registration.url);
+  } catch (error) {
+    if (telegram?.showAlert) {
+      telegram.showAlert(error.message);
+    } else {
+      window.alert(error.message);
+    }
+  } finally {
+    button.disabled = false;
+  }
 };
 
 const openProductMaterials = async (product) => {
