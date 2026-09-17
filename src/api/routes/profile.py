@@ -1,6 +1,6 @@
 from dishka import FromDishka
 from dishka.integrations.fastapi import inject
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from api.schemas import (
     DiaryEntryRequest,
@@ -11,6 +11,8 @@ from api.schemas import (
     MarkNotificationsReadResponse,
     NotificationListResponse,
     NotificationResponse,
+    PocketOptionRegistrationLinkRequest,
+    PocketOptionRegistrationLinkResponse,
     UserProfileResponse,
 )
 from api.webapp_auth import WebAppContext, get_webapp_context
@@ -19,6 +21,8 @@ from domain.statuses import status_progress
 from domain.enums import ActivityType
 from services.access import AccessService
 from services.diary import DiaryService
+from services.exceptions import PocketOptionLinkConfigurationError, PocketOptionLinkError
+from services.pocket_option_links import PocketOptionLinkService
 
 router = APIRouter(prefix="/me", tags=["webapp"])
 
@@ -75,6 +79,32 @@ async def get_profile(
         ),
         remaining_deposits=progress.remaining_deposits,
     )
+
+
+@router.post("/pocket-option/link", response_model=PocketOptionRegistrationLinkResponse)
+@inject
+async def issue_pocket_option_registration_link(
+    payload: PocketOptionRegistrationLinkRequest,
+    link_service: FromDishka[PocketOptionLinkService],
+    context: WebAppContext = Depends(get_webapp_context),
+) -> PocketOptionRegistrationLinkResponse:
+    try:
+        registration_link = await link_service.issue_registration_link(
+            context.uow,
+            user=context.user,
+            force_new=payload.force_new,
+        )
+    except PocketOptionLinkError as error:
+        raise HTTPException(
+            status_code=(
+                status.HTTP_503_SERVICE_UNAVAILABLE
+                if isinstance(error, PocketOptionLinkConfigurationError)
+                else status.HTTP_409_CONFLICT
+            ),
+            detail=str(error),
+        ) from error
+    await context.uow.commit()
+    return PocketOptionRegistrationLinkResponse(url=registration_link.url)
 
 
 @router.get("/diary", response_model=DiaryEntryResponse | None)

@@ -55,6 +55,14 @@ class UserProfileResponse(BaseModel):
     remaining_deposits: Decimal
 
 
+class PocketOptionRegistrationLinkRequest(BaseModel):
+    force_new: bool = False
+
+
+class PocketOptionRegistrationLinkResponse(BaseModel):
+    url: str
+
+
 class DiaryEntryRequest(BaseModel):
     profitable_trades: int = Field(ge=0, le=100_000)
     losing_trades: int = Field(ge=0, le=100_000)

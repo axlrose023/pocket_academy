@@ -18,6 +18,7 @@ from services import (
     ExternalEventService,
     PocketOptionEventParser,
     PocketOptionEventService,
+    PocketOptionLinkService,
     ProductService,
     SignalService,
     TelegramWebAppAuthService,
@@ -129,6 +130,12 @@ class AppProvider(Provider):
         parser: PocketOptionEventParser,
     ) -> PocketOptionEventService:
         return PocketOptionEventService(broker_event_service, parser)
+
+    @provide(scope=Scope.APP)
+    def pocket_option_link_service(
+        self, config: Config, clock: Clock
+    ) -> PocketOptionLinkService:
+        return PocketOptionLinkService(config, clock)
 
     @provide(scope=Scope.APP)
     def admin_service(self, config: Config) -> AdminService:

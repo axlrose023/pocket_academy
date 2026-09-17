@@ -42,3 +42,11 @@ class AttributionDAO:
         return await self._session.scalar(
             select(AttributionClick).where(AttributionClick.click_id == click_id)
         )
+
+    async def latest_for_telegram_id(self, telegram_id: int) -> AttributionClick | None:
+        return await self._session.scalar(
+            select(AttributionClick)
+            .where(AttributionClick.telegram_id == telegram_id)
+            .order_by(AttributionClick.recorded_at.desc())
+            .limit(1)
+        )
