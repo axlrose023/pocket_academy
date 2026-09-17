@@ -1,5 +1,4 @@
 from services.external_events import (
-    ChatterfyService,
     ExternalEventService,
     PocketOptionEventParser,
 )
@@ -15,7 +14,6 @@ from services.users import UserService
 
 __all__ = [
     "AdminService",
-    "ChatterfyService",
     "BrokerEventService",
     "DiaryService",
     "ExternalEventService",

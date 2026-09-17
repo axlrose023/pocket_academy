@@ -45,7 +45,6 @@ class PocketOptionLinkService:
             await uow.attribution.upsert(
                 telegram_id=user.telegram_id,
                 click_id=click_id,
-                link_chat=None,
                 source_created_at=now,
                 recorded_at=now,
             )

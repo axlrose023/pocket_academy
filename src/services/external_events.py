@@ -76,44 +76,6 @@ class ExternalEventService:
         return created
 
 
-@dataclass(frozen=True, slots=True)
-class ChatterfyLead:
-    telegram_id: int
-    click_id: str
-    link_chat: str | None
-    source_created_at: datetime.datetime | None
-
-
-class ChatterfyService:
-    def __init__(self, event_service: ExternalEventService, clock: Clock) -> None:
-        self._event_service = event_service
-        self._clock = clock
-
-    async def record_lead(
-        self,
-        uow: UnitOfWork,
-        *,
-        lead: ChatterfyLead,
-        payload: dict[str, Any],
-    ) -> bool:
-        await uow.users.ensure_telegram_id(lead.telegram_id)
-        _, created = await self._event_service.record(
-            uow,
-            provider=ExternalProvider.CHATTERFY,
-            event_type=ExternalEventType.LEAD,
-            payload=payload,
-            source_event_id=lead.click_id,
-        )
-        await uow.attribution.upsert(
-            telegram_id=lead.telegram_id,
-            click_id=lead.click_id,
-            link_chat=lead.link_chat,
-            source_created_at=lead.source_created_at,
-            recorded_at=self._clock.now(),
-        )
-        return created
-
-
 class PocketOptionEventParser:
     _event_types = {
         "registration": ExternalEventType.REGISTRATION,

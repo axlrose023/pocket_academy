@@ -2,13 +2,11 @@ from enum import StrEnum
 
 
 class ExternalProvider(StrEnum):
-    CHATTERFY = "chatterfy"
     POCKET_OPTION = "pocket_option"
 
 
 class ExternalEventType(StrEnum):
     UNKNOWN = "unknown"
-    LEAD = "lead"
     REGISTRATION = "registration"
     FIRST_DEPOSIT = "first_deposit"
     REPEAT_DEPOSIT = "repeat_deposit"

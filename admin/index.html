@@ -16,7 +16,7 @@
         <form class="date-filter" id="dashboard-filter"><label>С<input id="date-from" type="date" required /></label><label>По<input id="date-to" type="date" required /></label><label>Группировка<select id="dashboard-granularity"><option value="day">Дни</option><option value="week">Недели</option><option value="month">Месяцы</option></select></label><button type="submit">Обновить</button></form>
         <p class="muted" id="dashboard-period">Загрузка отчёта…</p>
         <div class="metrics-grid">
-          <article class="metric"><p>Лиды Chatterfy</p><strong data-metric="leads">—</strong></article>
+          <article class="metric"><p>Выданные партнёрские ссылки</p><strong data-metric="leads">—</strong></article>
           <article class="metric"><p>Регистрации</p><strong data-metric="registrations">—</strong></article>
           <article class="metric"><p>Все депозиты</p><strong data-metric="deposit-count">—</strong><span data-metric="deposit-amount">—</span></article>
           <article class="metric"><p>FD</p><strong data-metric="first-deposits">—</strong><span data-metric="first-deposit-amount">—</span></article>
@@ -36,8 +36,8 @@
 
       <section class="panel">
         <h2>Пользователь</h2>
-        <form class="inline-form" id="user-search"><input id="user-identifier" placeholder="Telegram ID, @username, trader ID, click ID или link_chat" required /><button type="submit">Найти</button></form>
-        <div id="user-result"><p class="muted">Найди пользователя по Telegram, связке Chatterfy или ID трейдера.</p></div>
+        <form class="inline-form" id="user-search"><input id="user-identifier" placeholder="Telegram ID, @username, trader ID или click ID" required /><button type="submit">Найти</button></form>
+        <div id="user-result"><p class="muted">Найди пользователя по Telegram, click ID или ID трейдера.</p></div>
       </section>
 
       <section class="panel">

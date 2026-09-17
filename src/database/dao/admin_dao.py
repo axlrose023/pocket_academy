@@ -99,7 +99,6 @@ class AdminDAO:
         conditions = [
             User.username == username,
             AttributionClick.click_id == normalized_identifier,
-            AttributionClick.link_chat == normalized_identifier,
             BrokerAccount.trader_id == normalized_identifier,
         ]
         if normalized_identifier.isdigit():

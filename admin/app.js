@@ -269,8 +269,7 @@ const renderUser = () => {
   identifiers.textContent = [
     user.trader_ids.length ? `Trader: ${user.trader_ids.join(', ')}` : null,
     user.click_id ? `Click: ${user.click_id}` : null,
-    user.link_chat ? `Chat: ${user.link_chat}` : null,
-  ].filter(Boolean).join(' · ') || 'Связки Chatterfy и Pocket Option пока нет';
+  ].filter(Boolean).join(' · ') || 'Данных о связке с Pocket Option пока нет';
   title.append(identifiers);
   const access = document.createElement('span');
   access.className = user.is_blocked ? 'muted' : '';

@@ -1,7 +1,7 @@
 # Pocket Academy — implementation plan
 
-Status: planning only. No application code, migration, or deployment configuration
-is changed by this document.
+Status: application baseline is implemented. Production activation requires the
+real Telegram, Pocket Option, infrastructure, and storage settings.
 
 ## Confirmed scope
 
@@ -10,7 +10,8 @@ is changed by this document.
 - Telegram bot is an entry point and may deliver Telegram messages;
 - PostgreSQL, Redis, Docker, Alembic, and Python backend inherit from the
   template;
-- Chatterfy sends `tg_id`, `click_id`, and `link_chat` to our API;
+- Pocket Academy creates and stores a unique `click_id` when an authenticated
+  WebApp user requests a Pocket Option registration link;
 - Pocket Option sends registration, FD, RD, and withdrawal postbacks;
 - content storage will use S3-compatible storage in a later phase;
 - infrastructure credentials, domain, and webhook URLs will be supplied later.
@@ -33,7 +34,7 @@ is changed by this document.
      processing result.
 
 3. **Integration adapters**
-   - Add a protected Chatterfy lead endpoint.
+   - Issue Pocket Option registration links from the authenticated WebApp API.
    - Add a protected Pocket Option postback endpoint and map registration, FD,
      RD, and withdrawal events to the domain services.
    - Keep provider field names and link construction configurable, not spread
@@ -73,17 +74,14 @@ is changed by this document.
 - Exact Pocket Option affiliate-link parameter for `click_id`, postback field
   names, unique event identifier, signature/authentication method, and all
   withdrawal-status values.
-- The Chatterfy-supported way to issue a genuinely new `click_id` for the
-  re-registration journey. A normal outgoing Chatterfy Webhook cannot set
-  custom HTTP headers, so its secret must be passed by an approved supported
-  mechanism until that capability is confirmed.
 - Final S3 provider/bucket, media size limits, and access model.
 - Production credentials and hostnames.
 
 ## Verification gates
 
-- Unit tests for status/PAC/limits/withdrawal/diary rules.
-- API contract tests for Telegram, Chatterfy, and Pocket Option adapters.
+- Static checks and a controlled manual API scenario for links, registrations,
+  deposits, withdrawals, duplicates, and delayed events.
+- API contract checks for Telegram and Pocket Option adapters.
 - Migration test against PostgreSQL and end-to-end WebApp smoke tests.
 - A test registration, FD, RD, withdrawal, cancellation, and duplicate-event
   sequence in each provider's sandbox or controlled production test setup.

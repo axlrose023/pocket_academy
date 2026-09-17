@@ -14,38 +14,24 @@ accounts before an integration is enabled.
 
 Source: [Telegram Mini Apps](https://core.telegram.org/bots/webapps).
 
-## Chatterfy
-
-- An outgoing Flow Webhook supports GET or POST and can substitute `{chatId}`,
-  `{username}`, `{createdAt}`, and `{tracker.clickid}` into a request.
-- Its template syntax uses single braces (`{var}`), unlike the double-brace
-  syntax used elsewhere in Chatterfy.
-- The standard Flow Webhook does not provide custom HTTP-header settings and
-  does not retry a failed request. The receiving endpoint therefore needs an
-  approved supported secret mechanism and must acknowledge accepted payloads
-  promptly.
-
-Source: [Chatterfy outgoing Webhook](https://docs.chatterfy.ai/en/crm/tracking/webhook).
-
 ## Pocket Option postbacks
 
-- Chatterfy's Pocket Option setup guide confirms separate provider postbacks
-  are configured for events and that a `click_id` parameter can be used for
-  attribution. Its event examples include `registration` and `resale`.
-- Chatterfy's Custom Postback reference identifies `sale` as a first deposit
-  and `resale` as a repeat deposit. The receiver accepts these aliases along
-  with the canonical `fd` and `rd` values.
+- Pocket Partners documents affiliate-link parameters and postback macros. The
+  application adds its internal `click_id` to the configured partner link and
+  uses the same value to match later events.
+- The receiver accepts `sale` as a first deposit and `resale` as a repeat
+  deposit alongside the canonical `fd` and `rd` values.
 - The implementation records every raw postback before processing it, stores
   normalized fields alongside valid payloads, and records unsupported payloads
   as rejected with their reason. It retries valid events that arrive before
-  their Chatterfy attribution or broker registration. A duplicate event is
-  identified by the provider event ID when supplied; otherwise a fingerprint
-  of its complete payload is used.
+  their broker registration. A duplicate event is identified by the provider
+  event ID when supplied; otherwise a fingerprint of its complete payload is
+  used.
 
 ### Canonical receiver contract
 
-Configure the Pocket Option (or its intermediary) postback URL to send these
-names whenever its account exposes matching macros:
+Configure the Pocket Option postback URL to send these names whenever its
+account exposes matching macros:
 
 ```text
 https://<api-host>/api/integrations/pocket-option/events?token=<secret>
@@ -72,4 +58,4 @@ The final Pocket Option account must still confirm its macro names, signature
 mechanism, registration-link parameter, and withdrawal-status values before
 the webhook secret is configured for production.
 
-Sources: [Chatterfy Pocket Option postbacks](https://help.chatterfy.ai/tracker/funkcional-tracker/pocket-option-postbacks), [Chatterfy Custom Postback](https://docs.chatterfy.ai/en/tracker/integrations/custom-postback).
+Sources: [Pocket Partners: affiliate-link anatomy](https://playbook.affpartners.io/en/affiliate/lessons/affiliate-link-anatomy/), [Pocket Partners: postback setup](https://playbook.affpartners.io/en/affiliate/lessons/postback-setup/).

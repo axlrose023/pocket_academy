@@ -520,7 +520,6 @@ async def _user_response(
         username=user.username,
         trader_ids=await context.webapp.uow.admin.user_trader_ids(user.id),
         click_id=attribution.click_id if attribution else None,
-        link_chat=attribution.link_chat if attribution else None,
         total_deposits=access.total_deposits,
         pac_balance=await context.webapp.uow.pac_ledger.balance(user.id),
         status=access.status_policy.status.value,

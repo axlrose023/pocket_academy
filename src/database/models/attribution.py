@@ -17,7 +17,6 @@ class AttributionClick(Base):
     id: Mapped[uuid_pk]
     telegram_id: Mapped[int] = mapped_column(BigInteger, index=True)
     click_id: Mapped[str] = mapped_column(String(255), unique=True)
-    link_chat: Mapped[str | None] = mapped_column(Text)
     source_created_at: Mapped[datetime.datetime | None] = mapped_column(
         DateTime(timezone=True)
     )

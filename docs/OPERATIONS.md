@@ -6,13 +6,17 @@
    `BOT_BOT__WEBAPP_URL`.
 2. Set `BOT_ADMIN__TELEGRAM_IDS` to the JSON array of initial administrator
    Telegram IDs, for example `[123456789]`.
-3. Generate distinct long random values for the Chatterfy and Pocket Option
-   webhook secrets. Do not reuse the Telegram token.
-4. Configure Chatterfy to call `/api/integrations/chatterfy/leads?token=...`.
-   The standard Chatterfy Flow Webhook does not support custom headers.
-5. Confirm the Pocket Option postback field mapping, signature method, unique
-   event ID, trader ID, amount, timestamp, and withdrawal status values before
-   enabling its endpoint.
+3. Generate a long random value for the Pocket Option webhook secret. Do not
+   reuse the Telegram token.
+4. Set `BOT_INTEGRATIONS__POCKET_OPTION_REGISTRATION_URL` and, if needed,
+   `BOT_INTEGRATIONS__POCKET_OPTION_REGISTRATION_URL_RU` to the real Pocket
+   Partners registration links. Keep
+   `BOT_INTEGRATIONS__POCKET_OPTION_CLICK_ID_PARAMETER=click_id` unless Pocket
+   Partners confirms another parameter name.
+5. Configure the Pocket Option postback to call
+   `/api/integrations/pocket-option/events?token=...` and confirm the field
+   mapping, signature method, unique event ID, trader ID, amount, timestamp,
+   and withdrawal status values before enabling it.
 6. Run controlled test events for registration, FD, RD, withdrawal, cancelled
    withdrawal, duplicate delivery, and reordered delivery.
 
@@ -50,8 +54,8 @@ S3-compatible providers that require path-style addressing.
 UTC schedules. Keep both services running:
 
 - every 10 minutes, received Pocket Option events are retried in chronological
-  order (up to 100 events per run), allowing a delayed Chatterfy attribution or
-  registration to unblock an earlier event;
+  order (up to 100 events per run), allowing a delayed registration to unblock
+  an earlier event;
 - at 18:00 UTC, users who have opened Pocket Academy but have not completed
   today's diary receive one in-app diary reminder. The database unique key
   makes repeated scheduler runs safe.
