@@ -10,6 +10,7 @@ from domain.clock import Clock
 from keyboards import admin_webapp_keyboard, webapp_keyboard
 from keyboards.webapp import ASSET_VERSION
 from services import UserService
+from services.admin import AdminPermissionError, AdminService
 
 commands_router = Router(name="commands_router")
 
@@ -58,11 +59,15 @@ async def cmd_start(
 async def cmd_admin(
     message: Message,
     config: FromDishka[Config],
+    uow: FromDishka[UnitOfWork],
+    admin_service: FromDishka[AdminService],
 ) -> None:
     sender = message.from_user
     if sender is None:
         return
-    if sender.id not in config.admin.telegram_ids:
+    try:
+        await admin_service.require_admin(uow, telegram_id=sender.id)
+    except AdminPermissionError:
         await message.answer("У тебя нет доступа к админке.")
         return
     if config.api.public_base_url is None:
