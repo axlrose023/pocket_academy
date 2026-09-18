@@ -233,6 +233,8 @@ const renderUserDiary = (report) => {
 };
 
 const loadUser = async (identifier) => {
+  const result = $('#user-result');
+  result.textContent = 'Загружаем карточку пользователя…';
   try {
     const params = new URLSearchParams({ identifier });
     const user = await api(`/api/admin/users?${params}`);
@@ -241,10 +243,12 @@ const loadUser = async (identifier) => {
     state.userDiary = diary;
     $('#user-identifier').value = identifier;
     renderUser();
+    result.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
     state.user = null;
     state.userDiary = null;
-    $('#user-result').textContent = error.message;
+    result.textContent = error.message;
+    result.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 };
 
