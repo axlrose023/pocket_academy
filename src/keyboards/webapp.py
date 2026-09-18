@@ -1,15 +1,19 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
+ASSET_VERSION = "20260918-3"
+
 
 def webapp_keyboard(webapp_url: str | None) -> InlineKeyboardMarkup | None:
     if webapp_url is None:
         return None
+    separator = "&" if "?" in webapp_url else "?"
+    versioned_url = f"{webapp_url}{separator}v={ASSET_VERSION}"
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text="Open Pocket Academy",
-                    web_app=WebAppInfo(url=webapp_url),
+                    web_app=WebAppInfo(url=versioned_url),
                 )
             ]
         ]

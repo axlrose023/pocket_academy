@@ -8,6 +8,7 @@ from config import Config
 from database.uow import UnitOfWork
 from domain.clock import Clock
 from keyboards import admin_webapp_keyboard, webapp_keyboard
+from keyboards.webapp import ASSET_VERSION
 from services import UserService
 
 commands_router = Router(name="commands_router")
@@ -67,7 +68,7 @@ async def cmd_admin(
     if config.api.public_base_url is None:
         await message.answer("Админка ещё настраивается. Попробуй позже.")
         return
-    admin_url = f"{config.api.public_base_url.rstrip('/')}/admin/"
+    admin_url = f"{config.api.public_base_url.rstrip('/')}/admin/?v={ASSET_VERSION}"
     await message.answer(
         "Открыть админку:",
         reply_markup=admin_webapp_keyboard(admin_url),
