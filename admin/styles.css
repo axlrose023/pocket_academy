@@ -41,8 +41,11 @@ td, th { padding: 11px 8px; text-align: left; border-bottom: 1px solid var(--lin
 th { color: var(--muted); font-size: 12px; font-weight: 600; }
 td { color: var(--muted); }
 td strong { display: block; color: var(--text); }
-.row-actions { display: flex; justify-content: flex-end; gap: 7px; }
+/* Keep action cells as table cells. Turning a <td> into a flex container makes
+   browsers calculate it outside the table grid, which breaks row dividers. */
+td.row-actions { text-align: right; white-space: nowrap; }
 .row-actions button { padding: 7px 9px; font-size: 12px; }
+.row-actions button + button { margin-left: 7px; }
 .user-card { padding: 16px; margin-top: 16px; background: #131a29; border: 1px solid var(--line); border-radius: 12px; }
 .user-card__head { align-items: flex-start; }
 .user-card h3 { margin: 0 0 4px; }
