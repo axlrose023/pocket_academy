@@ -28,7 +28,10 @@ async def list_products(
     )
     return ProductListResponse(
         products=[
-            _product_response(product, is_available=is_available)
+            _product_response(
+                product,
+                is_available=is_available or context.user.is_test_access,
+            )
             for product, is_available in products_with_access
         ]
     )
@@ -66,9 +69,13 @@ async def list_product_materials(
     material_storage: FromDishka[MaterialStorage],
     context: WebAppContext = Depends(get_webapp_context),
 ) -> ProductMaterialListResponse:
-    product = await context.uow.products.get_accessible(
-        user_id=context.user.id,
-        product_id=product_id,
+    product = (
+        await context.uow.products.get_published(product_id)
+        if context.user.is_test_access
+        else await context.uow.products.get_accessible(
+            user_id=context.user.id,
+            product_id=product_id,
+        )
     )
     if product is None:
         raise HTTPException(
