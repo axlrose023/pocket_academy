@@ -49,6 +49,7 @@ async def get_signal_availability(
     await context.uow.commit()
     return SignalOverviewResponse(
         is_blocked=overview.access.is_blocked,
+        is_test_access=overview.is_test_access,
         is_registered=overview.is_registered,
         has_deposit=overview.has_deposit,
         allowed_timeframes=allowed_timeframes(overview.access.status_policy),

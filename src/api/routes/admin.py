@@ -34,6 +34,7 @@ from api.schemas import (
     AdminUserListResponse,
     AdminUserResponse,
     AdminUserSummaryResponse,
+    AdminUserTestAccessRequest,
 )
 from database.models import Product, ProductMaterial, SignalAsset, User
 from domain.clock import Clock
@@ -240,6 +241,31 @@ async def set_user_blocked(
         target=user,
         blocked=payload.is_blocked,
         reason=payload.reason,
+    )
+    await context.webapp.uow.commit()
+    return await _user_response(context, user, access_service)
+
+
+@router.patch("/users/{identifier}/test-access", response_model=AdminUserResponse)
+@inject
+async def set_user_test_access(
+    identifier: str,
+    payload: AdminUserTestAccessRequest,
+    admin_service: FromDishka[AdminService],
+    access_service: FromDishka[AccessService],
+    context: AdminContext = Depends(get_admin_context),
+) -> AdminUserResponse:
+    user = await context.webapp.uow.admin.find_user(identifier)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User was not found",
+        )
+    await admin_service.set_user_test_access(
+        context.webapp.uow,
+        actor=context.user,
+        target=user,
+        is_test_access=payload.is_test_access,
     )
     await context.webapp.uow.commit()
     return await _user_response(context, user, access_service)
@@ -524,6 +550,7 @@ async def _user_response(
         pac_balance=await context.webapp.uow.pac_ledger.balance(user.id),
         status=access.status_policy.status.value,
         is_blocked=access.is_blocked,
+        is_test_access=user.is_test_access,
         is_manually_blocked=user.is_manually_blocked,
         is_manually_unblocked=user.is_manually_unblocked,
         manual_block_reason=user.manual_block_reason,

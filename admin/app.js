@@ -322,10 +322,39 @@ const renderUser = () => {
       showToast(error.message, true);
     }
   });
+  const testAccessControls = document.createElement('form');
+  testAccessControls.className = 'inline-form';
+  const testAccessDescription = document.createElement('span');
+  testAccessDescription.className = 'muted';
+  testAccessDescription.textContent = user.is_test_access
+    ? 'Тестовый доступ включён: можно проверять сигналы без регистрации и депозита.'
+    : 'Тестовый доступ даёт возможность проверять сигналы без регистрации и депозита.';
+  const nextTestAccess = !user.is_test_access;
+  const testAccessButton = createButton(
+    nextTestAccess ? 'Открыть тестовый доступ' : 'Закрыть тестовый доступ',
+    nextTestAccess ? '' : 'ghost-button',
+  );
+  testAccessButton.type = 'submit';
+  testAccessControls.append(testAccessDescription, testAccessButton);
+  testAccessControls.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    testAccessButton.disabled = true;
+    try {
+      state.user = await api(`/api/admin/users/${encodeURIComponent(String(user.telegram_id))}/test-access`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_test_access: nextTestAccess }),
+      });
+      renderUser();
+      showToast(nextTestAccess ? 'Тестовый доступ открыт.' : 'Тестовый доступ закрыт.');
+    } catch (error) {
+      testAccessButton.disabled = false;
+      showToast(error.message, true);
+    }
+  });
   const diary = renderUserDiary(state.userDiary);
   card.append(head, stats);
   if (diary) card.append(diary);
-  card.append(controls);
+  card.append(controls, testAccessControls);
   root.append(card);
 };
 

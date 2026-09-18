@@ -148,6 +148,22 @@ class AdminService:
             or "Access was suspended by a Pocket Academy manager.",
         )
 
+    async def set_user_test_access(
+        self,
+        uow: UnitOfWork,
+        *,
+        actor: User,
+        target: User,
+        is_test_access: bool,
+    ) -> None:
+        target.is_test_access = is_test_access
+        await uow.admin.add_audit_log(
+            actor_id=actor.id,
+            target_user_id=target.id,
+            action=AuditAction.UPDATE_TEST_ACCESS.value,
+            payload={"is_test_access": is_test_access},
+        )
+
     async def dashboard(
         self,
         uow: UnitOfWork,

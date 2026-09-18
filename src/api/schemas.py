@@ -150,6 +150,7 @@ class SignalAvailabilityResponse(BaseModel):
 
 class SignalOverviewResponse(BaseModel):
     is_blocked: bool
+    is_test_access: bool
     is_registered: bool
     has_deposit: bool
     allowed_timeframes: tuple[int, ...]
@@ -189,6 +190,7 @@ class AdminUserResponse(BaseModel):
     pac_balance: Decimal
     status: str
     is_blocked: bool
+    is_test_access: bool
     is_manually_blocked: bool
     is_manually_unblocked: bool
     manual_block_reason: str | None
@@ -197,6 +199,10 @@ class AdminUserResponse(BaseModel):
 class AdminUserBlockRequest(BaseModel):
     is_blocked: bool
     reason: str | None = Field(default=None, max_length=500)
+
+
+class AdminUserTestAccessRequest(BaseModel):
+    is_test_access: bool
 
 
 class AdminUserSummaryResponse(BaseModel):

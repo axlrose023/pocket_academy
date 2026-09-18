@@ -26,6 +26,7 @@ class SignalAvailability:
 @dataclass(frozen=True, slots=True)
 class UserSignalOverview:
     access: UserAccessSnapshot
+    is_test_access: bool
     is_registered: bool
     has_deposit: bool
     standard: SignalAvailability
@@ -57,9 +58,9 @@ class SignalService:
         overview = await self.overview(uow, user=user)
         if overview.access.is_blocked:
             raise SignalRuleError("Access is blocked")
-        if not overview.is_registered:
+        if not overview.is_test_access and not overview.is_registered:
             raise SignalRuleError("Broker registration is required")
-        if not overview.has_deposit:
+        if not overview.is_test_access and not overview.has_deposit:
             raise SignalRuleError("A deposit is required")
         if timeframe_seconds not in allowed_timeframes(overview.access.status_policy):
             raise SignalRuleError("Timeframe is not available")
@@ -72,7 +73,11 @@ class SignalService:
         asset = await uow.signals.get_active_asset(asset_id)
         if asset is None:
             raise SignalRuleError("Signal asset is unavailable")
-        if premium and not overview.is_premium_available:
+        if (
+            premium
+            and not overview.is_test_access
+            and not overview.is_premium_available
+        ):
             raise SignalRuleError("Premium signal requires a larger deposit")
         signal = await uow.signals.add(
             user_id=user_id,
@@ -111,6 +116,7 @@ class SignalService:
         )
         return UserSignalOverview(
             access=access,
+            is_test_access=user.is_test_access,
             is_registered=await uow.finance.has_account(user.id),
             has_deposit=access.total_deposits > 0,
             standard=standard,

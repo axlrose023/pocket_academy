@@ -1,6 +1,6 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
-ASSET_VERSION = "20260918-5"
+ASSET_VERSION = "20260918-6"
 
 
 def webapp_keyboard(webapp_url: str | None) -> InlineKeyboardMarkup | None:

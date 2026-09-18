@@ -260,10 +260,11 @@ const renderSignalControls = () => {
   const button = $('#signal-button');
   const nextAvailableAt = availability.next_available_at ? new Date(availability.next_available_at) : null;
   const isWaiting = nextAvailableAt && nextAvailableAt > new Date();
-  const premiumBlocked = isPremium && !state.availability.is_premium_available;
+  const hasTestAccess = state.availability.is_test_access;
+  const premiumBlocked = isPremium && !hasTestAccess && !state.availability.is_premium_available;
   const dailyLimitReached = availability.limit !== null && availability.used >= availability.limit;
-  const registrationRequired = !state.profile.is_registered;
-  const depositRequired = !state.profile.has_deposit;
+  const registrationRequired = !hasTestAccess && !state.profile.is_registered;
+  const depositRequired = !hasTestAccess && !state.profile.has_deposit;
   button.disabled = Boolean(
     state.availability.is_blocked
       || registrationRequired
@@ -284,6 +285,9 @@ const renderSignalControls = () => {
   } else if (state.availability.is_blocked) {
     button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
     notice.textContent = 'Доступ к сигналам временно ограничен.';
+  } else if (hasTestAccess) {
+    button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
+    notice.textContent = 'Тестовый доступ: сигналы доступны без регистрации и депозита.';
   } else if (premiumBlocked) {
     button.textContent = 'Premium-сигнал';
     notice.textContent = `Premium доступен от ${dollars(state.availability.premium_minimum_deposit)} депозитов.`;
