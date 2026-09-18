@@ -21,6 +21,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
 
 COPY ./src /app/src
+COPY ./webapp /app/webapp
+COPY ./admin /app/admin
 COPY ./pyproject.toml /app
 COPY ./uv.lock /app
 COPY ./alembic.ini /app
