@@ -285,9 +285,6 @@ const renderSignalControls = () => {
   } else if (state.availability.is_blocked) {
     button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
     notice.textContent = 'Доступ к сигналам временно ограничен.';
-  } else if (hasTestAccess) {
-    button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
-    notice.textContent = 'Тестовый доступ: сигналы доступны без регистрации и депозита.';
   } else if (premiumBlocked) {
     button.textContent = 'Premium-сигнал';
     notice.textContent = `Premium доступен от ${dollars(state.availability.premium_minimum_deposit)} депозитов.`;
@@ -297,6 +294,9 @@ const renderSignalControls = () => {
   } else if (isWaiting) {
     button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
     notice.textContent = `Следующий сигнал будет доступен в ${nextAvailableAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}.`;
+  } else if (hasTestAccess) {
+    button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
+    notice.textContent = 'Тестовый доступ: сигналы доступны без регистрации и депозита.';
   } else {
     button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
     notice.textContent = isPremium ? 'Premium-сигналы имеют отдельный лимит.' : 'Направление и вероятность формируются для твоего статуса.';
