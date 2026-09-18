@@ -25,6 +25,22 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    environment:
+      CADDY_SITE_ADDRESS: ${CADDY_SITE_ADDRESS:?CADDY_SITE_ADDRESS is required}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_started
+
   bot: &bot
     <<: *app
     restart: unless-stopped
@@ -56,8 +72,6 @@ services:
       POSTGRES_DB: ${BOT_POSTGRES__DB}
     expose:
       - 5432
-    ports:
-      - "5433:5432"
     healthcheck:
       test: [ "CMD", "pg_isready" ]
       interval: 2s
@@ -69,8 +83,6 @@ services:
     restart: unless-stopped
     expose:
       - 6379
-    ports:
-      - "6379:6379"
     volumes:
       - keydb-data:/data
     healthcheck:
@@ -82,3 +94,5 @@ services:
 volumes:
   db-data:
   keydb-data:
+  caddy-data:
+  caddy-config:
