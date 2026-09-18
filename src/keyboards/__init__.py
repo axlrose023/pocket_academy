@@ -1,3 +1,3 @@
-from keyboards.webapp import webapp_keyboard
+from keyboards.webapp import admin_webapp_keyboard, webapp_keyboard
 
-__all__ = ["webapp_keyboard"]
+__all__ = ["admin_webapp_keyboard", "webapp_keyboard"]

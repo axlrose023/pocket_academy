@@ -14,3 +14,16 @@ def webapp_keyboard(webapp_url: str | None) -> InlineKeyboardMarkup | None:
             ]
         ]
     )
+
+
+def admin_webapp_keyboard(admin_url: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Open Pocket Academy Admin",
+                    web_app=WebAppInfo(url=admin_url),
+                )
+            ]
+        ]
+    )
