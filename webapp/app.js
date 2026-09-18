@@ -205,6 +205,10 @@ const renderDiary = () => {
   $('#losing-trades').value = entry?.losing_trades || 0;
   $('#diary-comment').value = entry?.comment || '';
   state.mood = entry?.mood || 3;
+  renderMoodOptions();
+};
+
+const renderMoodOptions = () => {
   document.querySelectorAll('[data-mood]').forEach((button) => {
     button.classList.toggle('is-selected', Number(button.dataset.mood) === state.mood);
   });
@@ -676,7 +680,7 @@ const bindEvents = () => {
   document.querySelectorAll('[data-mood]').forEach((button) => {
     button.addEventListener('click', () => {
       state.mood = Number(button.dataset.mood);
-      renderDiary();
+      renderMoodOptions();
     });
   });
   $('#signal-button').addEventListener('click', generateSignal);
