@@ -665,7 +665,7 @@ const bootstrap = async () => {
     return;
   }
   try {
-    const [dashboard, products, assets, users] = await Promise.all([
+    const [dashboard, products, assets, _settings, users] = await Promise.all([
       api(`/api/admin/dashboard?date_from=${$('#date-from').value}&date_to=${$('#date-to').value}&granularity=${$('#dashboard-granularity').value}`),
       api('/api/admin/products'),
       api('/api/admin/signal-assets'),
