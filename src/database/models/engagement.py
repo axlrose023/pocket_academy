@@ -33,7 +33,7 @@ class Notification(Base):
         CheckConstraint(
             "notification_type IN ('registration', 'deposit', 'product_access', "
             "'status_changed', 'access_blocked', 'access_restored', "
-            "'low_first_deposit', 'diary_reminder')",
+            "'low_first_deposit', 'diary_reminder', 'diary_streak_reward')",
             name="type_known",
         ),
     )

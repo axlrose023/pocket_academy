@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from database.models import DiaryEntry
 from database.uow import UnitOfWork
-from domain.enums import PacEntryReason
+from domain.enums import NotificationType, PacEntryReason
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,4 +51,12 @@ class DiaryService:
             reference_day=today,
             note="Two-day diary streak",
         )
+        if reward_granted:
+            await uow.engagement.add_notification(
+                user_id=user_id,
+                notification_type=NotificationType.DIARY_STREAK_REWARD.value,
+                title="Бонус начислен",
+                body="За дневник два дня подряд начислено 5 PAC.",
+                reminder_day=today,
+            )
         return DiarySaveResult(entry=entry, reward_granted=reward_granted)

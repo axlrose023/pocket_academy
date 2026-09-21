@@ -130,7 +130,7 @@ async def save_today_diary(
     payload: DiaryEntryRequest,
     diary_service: FromDishka[DiaryService],
     context: WebAppContext = Depends(get_webapp_context),
-) -> DiaryEntryResponse:
+) -> DiarySaveResponse:
     result = await diary_service.save_today(
         context.uow,
         user_id=context.user.id,

@@ -88,12 +88,14 @@ class EngagementDAO:
         notification_type: str,
         title: str,
         body: str,
+        reminder_day: datetime.date | None = None,
     ) -> Notification:
         notification = Notification(
             user_id=user_id,
             notification_type=notification_type,
             title=title,
             body=body,
+            reminder_day=reminder_day,
         )
         self._session.add(notification)
         return notification

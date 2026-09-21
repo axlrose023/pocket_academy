@@ -455,8 +455,10 @@ const productAction = (product) => {
 
 const renderNotifications = () => {
   const root = $('#notification-list');
+  const badge = $('#notification-badge');
   root.replaceChildren();
   if (!state.notifications.length) {
+    badge.hidden = true;
     root.append(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Новых уведомлений нет.' }));
     return;
   }
@@ -474,7 +476,6 @@ const renderNotifications = () => {
     root.append(item);
   });
   const unreadCount = state.notifications.filter((notification) => !notification.read_at).length;
-  const badge = $('#notification-badge');
   badge.hidden = unreadCount === 0;
   badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
 };
@@ -565,10 +566,23 @@ const saveDiary = async () => {
   if (state.profile) renderHome();
 
   try {
-    state.diaryHistory = (await api('/api/me/diary/history')).entries;
+    const [diaryHistory, notifications] = await Promise.all([
+      api('/api/me/diary/history'),
+      api('/api/me/notifications'),
+    ]);
+    state.diaryHistory = diaryHistory.entries;
+    state.notifications = notifications.notifications;
     renderProfileCollections();
+    renderNotifications();
+    if (savedDiary.reward_granted) {
+      showNotificationToast(
+        state.notifications.find(
+          (notification) => notification.notification_type === 'diary_streak_reward' && !notification.read_at,
+        ),
+      );
+    }
   } catch {
-    $('#diary-notice').textContent += ' История обновится при следующем открытии.';
+    $('#diary-notice').textContent += ' История и уведомления обновятся при следующем открытии.';
   }
   button.disabled = false;
 };

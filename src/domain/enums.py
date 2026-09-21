@@ -76,6 +76,7 @@ class NotificationType(StrEnum):
     ACCESS_RESTORED = "access_restored"
     LOW_FIRST_DEPOSIT = "low_first_deposit"
     DIARY_REMINDER = "diary_reminder"
+    DIARY_STREAK_REWARD = "diary_streak_reward"
 
 
 class ActivityType(StrEnum):
