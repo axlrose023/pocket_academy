@@ -50,6 +50,7 @@ const setScreen = (screen) => {
   document.querySelectorAll('.tab').forEach((item) => {
     item.classList.toggle('is-active', item.dataset.tab === screen);
   });
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
 };
 
 const showOverlay = (title, message, managerUrl = null) => {
@@ -600,6 +601,7 @@ const openPocketOptionRegistration = async (button, forceNew) => {
 };
 
 const openProductMaterials = async (product) => {
+  window.scrollTo({ left: 0, behavior: 'auto' });
   $('#material-panel').hidden = false;
   $('#material-panel-title').textContent = product.title;
   const root = $('#material-list');
@@ -635,6 +637,7 @@ const openProductMaterials = async (product) => {
 };
 
 const openNotifications = async () => {
+  window.scrollTo({ left: 0, behavior: 'auto' });
   $('#notification-panel').hidden = false;
   try {
     const payload = await api('/api/me/notifications');
