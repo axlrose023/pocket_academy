@@ -65,6 +65,10 @@ class DiaryEntryResponse(BaseModel):
     reward_granted: bool = False
 
 
+class DiarySaveResponse(DiaryEntryResponse):
+    pac_balance: Decimal
+
+
 class DiaryEntryListResponse(BaseModel):
     entries: list[DiaryEntryResponse]
 

@@ -541,8 +541,9 @@ const generateSignal = async () => {
 const saveDiary = async () => {
   const button = $('#diary-button');
   button.disabled = true;
+  let savedDiary;
   try {
-    state.diary = await api('/api/me/diary', {
+    savedDiary = await api('/api/me/diary', {
       method: 'PUT',
       body: JSON.stringify({
         profitable_trades: Number($('#profitable-trades').value || 0),
@@ -551,15 +552,25 @@ const saveDiary = async () => {
         comment: $('#diary-comment').value.trim() || null,
       }),
     });
-    $('#diary-notice').textContent = state.diary.reward_granted ? 'Дневник сохранён. За серию начислено 5 PAC.' : 'Дневник сохранён.';
-    state.diaryHistory = (await api('/api/me/diary/history')).entries;
-    renderDiary();
-    renderProfileCollections();
   } catch (error) {
     $('#diary-notice').textContent = error.message;
-  } finally {
     button.disabled = false;
+    return;
   }
+
+  state.diary = savedDiary;
+  if (state.profile) state.profile.pac_balance = savedDiary.pac_balance;
+  $('#diary-notice').textContent = savedDiary.reward_granted ? 'Дневник сохранён. За серию начислено 5 PAC.' : 'Дневник сохранён.';
+  renderDiary();
+  if (state.profile) renderHome();
+
+  try {
+    state.diaryHistory = (await api('/api/me/diary/history')).entries;
+    renderProfileCollections();
+  } catch {
+    $('#diary-notice').textContent += ' История обновится при следующем открытии.';
+  }
+  button.disabled = false;
 };
 
 const purchaseProduct = async (product, button) => {

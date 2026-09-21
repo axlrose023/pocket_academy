@@ -6,6 +6,7 @@ from api.schemas import (
     DiaryEntryRequest,
     DiaryEntryResponse,
     DiaryEntryListResponse,
+    DiarySaveResponse,
     DepositListResponse,
     DepositResponse,
     MarkNotificationsReadResponse,
@@ -21,7 +22,10 @@ from domain.statuses import status_progress
 from domain.enums import ActivityType
 from services.access import AccessService
 from services.diary import DiaryService
-from services.exceptions import PocketOptionLinkConfigurationError, PocketOptionLinkError
+from services.exceptions import (
+    PocketOptionLinkConfigurationError,
+    PocketOptionLinkError,
+)
 from services.pocket_option_links import PocketOptionLinkService
 
 router = APIRouter(prefix="/me", tags=["webapp"])
@@ -120,7 +124,7 @@ async def get_today_diary(
     return _diary_response(entry)
 
 
-@router.put("/diary", response_model=DiaryEntryResponse)
+@router.put("/diary", response_model=DiarySaveResponse)
 @inject
 async def save_today_diary(
     payload: DiaryEntryRequest,
@@ -136,8 +140,15 @@ async def save_today_diary(
         mood=payload.mood,
         comment=payload.comment,
     )
+    balance = await context.uow.pac_ledger.balance(context.user.id)
     await context.uow.commit()
-    return _diary_response(result.entry, reward_granted=result.reward_granted)
+    return DiarySaveResponse(
+        **_diary_response(
+            result.entry,
+            reward_granted=result.reward_granted,
+        ).model_dump(),
+        pac_balance=balance,
+    )
 
 
 @router.get("/diary/history", response_model=DiaryEntryListResponse)
