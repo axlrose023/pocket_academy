@@ -78,6 +78,7 @@ class BrokerEventService:
                 trader_id=registration.trader_id,
                 registered_at=registration.occurred_at,
             )
+            await uow.flush()
             await uow.engagement.add_notification(
                 user_id=user.id,
                 notification_type=NotificationType.REGISTRATION.value,
@@ -120,6 +121,7 @@ class BrokerEventService:
             reference_id=event.id,
             note=f"{deposit.kind.value.title()} deposit",
         )
+        await uow.flush()
         access_after = await self._access_service.snapshot(uow, user=user)
         await self._product_service.grant_automatic(
             uow,
@@ -202,6 +204,7 @@ class BrokerEventService:
             and withdrawal.status != WithdrawalStatus.CANCELLED
         ):
             user.is_manually_unblocked = False
+        await uow.flush()
         access_after = await self._access_service.snapshot(uow, user=user)
         await self._notify_access_change(
             uow,
