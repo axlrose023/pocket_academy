@@ -3,10 +3,12 @@ from enum import StrEnum
 
 class ExternalProvider(StrEnum):
     POCKET_OPTION = "pocket_option"
+    CHATTERFLY = "chatterfly"
 
 
 class ExternalEventType(StrEnum):
     UNKNOWN = "unknown"
+    LEAD = "lead"
     REGISTRATION = "registration"
     FIRST_DEPOSIT = "first_deposit"
     REPEAT_DEPOSIT = "repeat_deposit"

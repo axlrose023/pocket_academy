@@ -47,8 +47,9 @@ https://<api-host>/api/integrations/pocket-option/events?token=<secret>
 ```
 
 `click_id` is required for registrations; `trader_id` and `amount` are
-required for FD/RD; withdrawals additionally require `event_id` (or a stable
-`withdrawal_id`) and `status`.
+required for FD/RD; withdrawals additionally require `status`. A stable
+`event_id` or `withdrawal_id` is preferred. When the provider exposes neither,
+the receiver derives a reference from the trader ID, amount, and event time.
 The receiver also supports the commonly documented aliases `clickid`,
 `playerid`, `sum`, `sumdep`, `revenue`, `tid`, and `transaction_id` to make
 the handover safer. It rejects a non-USD currency rather than calculating PAC

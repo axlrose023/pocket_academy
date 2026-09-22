@@ -6,6 +6,10 @@ class UnsupportedExternalEventError(ValueError):
     """Raised when a provider event cannot be safely classified yet."""
 
 
+class AttributionConflictError(ValueError):
+    """Raised when a click ID is already assigned to another Telegram user."""
+
+
 class PocketOptionLinkError(ValueError):
     """Raised when a Pocket Option registration link cannot be issued."""
 

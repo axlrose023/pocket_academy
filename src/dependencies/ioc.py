@@ -13,6 +13,8 @@ from domain.randomizer import SignalRandomizer
 from services import (
     AdminService,
     BrokerEventService,
+    ChatterflyLeadParser,
+    ChatterflyLeadService,
     DiaryService,
     ExternalEventService,
     PocketOptionEventParser,
@@ -78,6 +80,10 @@ class AppProvider(Provider):
         return PocketOptionEventParser(clock)
 
     @provide(scope=Scope.APP)
+    def chatterfly_lead_parser(self, clock: Clock) -> ChatterflyLeadParser:
+        return ChatterflyLeadParser(clock)
+
+    @provide(scope=Scope.APP)
     def access_service(self) -> AccessService:
         return AccessService()
 
@@ -121,6 +127,14 @@ class AppProvider(Provider):
         parser: PocketOptionEventParser,
     ) -> PocketOptionEventService:
         return PocketOptionEventService(broker_event_service, parser)
+
+    @provide(scope=Scope.APP)
+    def chatterfly_lead_service(
+        self,
+        clock: Clock,
+        pocket_option_event_service: PocketOptionEventService,
+    ) -> ChatterflyLeadService:
+        return ChatterflyLeadService(clock, pocket_option_event_service)
 
     @provide(scope=Scope.APP)
     def pocket_option_link_service(

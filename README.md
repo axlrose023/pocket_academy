@@ -27,6 +27,8 @@ The unauthenticated health endpoint is available at `GET /api/health`.
 The Mini App shell is at `/app/`; the separate administration surface is at
 `/admin/`. Production provider and storage setup is described in
 [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
+The Chatterfly relay contract and handover test are documented in
+[`docs/CHATTERFLY_INTEGRATION.md`](docs/CHATTERFLY_INTEGRATION.md).
 
 Do not commit production tokens, database passwords, provider secrets, or a
 real `.env` file.

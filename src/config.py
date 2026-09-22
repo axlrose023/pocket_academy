@@ -88,6 +88,7 @@ class IntegrationConfig(BaseModel):
     pocket_option_registration_url_ru: str | None = None
     pocket_option_click_id_parameter: str = "click_id"
     pocket_option_webhook_secret: SecretStr | None = None
+    chatterfly_webhook_secret: SecretStr | None = None
     telegram_init_data_max_age_seconds: int = 86_400
 
 

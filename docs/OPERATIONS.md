@@ -8,6 +8,7 @@
    Telegram IDs, for example `[123456789]`.
 3. Generate a long random value for the Pocket Option webhook secret. Do not
    reuse the Telegram token.
+   Generate a different value for `BOT_INTEGRATIONS__CHATTERFLY_WEBHOOK_SECRET`.
 4. Set `BOT_INTEGRATIONS__POCKET_OPTION_REGISTRATION_URL` and, if needed,
    `BOT_INTEGRATIONS__POCKET_OPTION_REGISTRATION_URL_RU` to the real Pocket
    Partners registration links. Keep
@@ -19,6 +20,11 @@
    and withdrawal status values before enabling it.
 6. Run controlled test events for registration, FD, RD, withdrawal, cancelled
    withdrawal, duplicate delivery, and reordered delivery.
+
+When Pocket Partners sends its postbacks to Chatterfly first, configure the
+relay described in [`CHATTERFLY_INTEGRATION.md`](CHATTERFLY_INTEGRATION.md).
+The Chatterfly webhook uses its own secret and then feeds the same broker-event
+processing used by the direct Pocket Partners receiver.
 
 The initial migration supplies EUR/USD, GBP/USD, USD/JPY, EUR/CHF, and their
 OTC variants. Review and maintain this list in the admin interface before the

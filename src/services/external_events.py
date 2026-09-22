@@ -88,8 +88,20 @@ class PocketOptionEventParser:
         "resale": ExternalEventType.REPEAT_DEPOSIT,
         "repeat_deposit": ExternalEventType.REPEAT_DEPOSIT,
         "withdrawal": ExternalEventType.WITHDRAWAL,
+        "new_withdrawal": ExternalEventType.WITHDRAWAL,
+        "pending_withdrawal": ExternalEventType.WITHDRAWAL,
+        "cancelled_withdrawal": ExternalEventType.WITHDRAWAL,
+        "canceled_withdrawal": ExternalEventType.WITHDRAWAL,
+        "successful_withdrawal": ExternalEventType.WITHDRAWAL,
+        "withdrawal_success": ExternalEventType.WITHDRAWAL,
     }
-    _event_keys = ("event_type", "event", "tracker.event", "goal")
+    _event_keys = (
+        "event_type",
+        "event",
+        "tracker.event",
+        "tracker_event",
+        "goal",
+    )
     _event_id_keys = (
         "event_id",
         "transaction_id",
@@ -98,11 +110,38 @@ class PocketOptionEventParser:
         "deposit_id",
         "order_id",
     )
-    _click_id_keys = ("click_id", "clickid", "sub_id", "sub_id1")
-    _trader_id_keys = ("trader_id", "playerid", "player_id", "user_id")
-    _amount_keys = ("amount", "sum", "sumdep", "revenue", "value")
-    _occurred_at_keys = ("occurred_at", "event_time", "timestamp", "created_at")
-    _currency_keys = ("currency", "cur")
+    _click_id_keys = (
+        "click_id",
+        "clickid",
+        "tracker.clickid",
+        "tracker_clickid",
+        "sub_id",
+        "sub_id1",
+    )
+    _trader_id_keys = (
+        "trader_id",
+        "tracker.trader_id",
+        "playerid",
+        "player_id",
+        "user_id",
+    )
+    _amount_keys = (
+        "amount",
+        "sum",
+        "sumdep",
+        "wdr_sum",
+        "revenue",
+        "value",
+    )
+    _occurred_at_keys = (
+        "occurred_at",
+        "event_at",
+        "date_time",
+        "event_time",
+        "timestamp",
+        "created_at",
+    )
+    _currency_keys = ("currency", "tracker.currency", "cur")
     _withdrawal_statuses = {
         "new": WithdrawalStatus.NEW,
         "pending": WithdrawalStatus.NEW,
@@ -113,6 +152,14 @@ class PocketOptionEventParser:
         "approved": WithdrawalStatus.SUCCESS,
         "completed": WithdrawalStatus.SUCCESS,
         "paid": WithdrawalStatus.SUCCESS,
+    }
+    _withdrawal_event_statuses = {
+        "new_withdrawal": WithdrawalStatus.NEW,
+        "pending_withdrawal": WithdrawalStatus.NEW,
+        "cancelled_withdrawal": WithdrawalStatus.CANCELLED,
+        "canceled_withdrawal": WithdrawalStatus.CANCELLED,
+        "successful_withdrawal": WithdrawalStatus.SUCCESS,
+        "withdrawal_success": WithdrawalStatus.SUCCESS,
     }
 
     def __init__(self, clock: Clock) -> None:
@@ -141,13 +188,14 @@ class PocketOptionEventParser:
             self._require(trader_id, "trader_id")
         else:
             self._require(trader_id, "trader_id")
+        self._reject_unresolved_macro(click_id, "click_id")
+        self._reject_unresolved_macro(trader_id, "trader_id")
         withdrawal_status = None
         if event_type == ExternalEventType.WITHDRAWAL:
-            self._require(source_event_id, "event_id")
             raw_status = self._first_text(payload, ("withdrawal_status", "status"))
             withdrawal_status = self._withdrawal_statuses.get(
                 (raw_status or "").lower()
-            )
+            ) or self._withdrawal_event_statuses.get(raw_event_type)
             if withdrawal_status is None:
                 raise UnsupportedExternalEventError("Unsupported withdrawal status")
         withdrawal_reference = (
@@ -157,6 +205,12 @@ class PocketOptionEventParser:
             )
             or source_event_id
         )
+        if event_type == ExternalEventType.WITHDRAWAL and withdrawal_reference is None:
+            withdrawal_reference = self._derived_withdrawal_reference(
+                trader_id=trader_id,
+                amount=amount,
+                occurred_at=occurred_at,
+            )
         return PocketOptionPostback(
             event_type=event_type,
             source_event_id=source_event_id,
@@ -216,6 +270,122 @@ class PocketOptionEventParser:
     def _require(value: str | None, field_name: str) -> None:
         if value is None:
             raise UnsupportedExternalEventError(f"Missing {field_name}")
+
+    @staticmethod
+    def _reject_unresolved_macro(value: str | None, field_name: str) -> None:
+        if value is not None and ("{" in value or "}" in value):
+            raise UnsupportedExternalEventError(
+                f"Unresolved template value for {field_name}"
+            )
+
+    @staticmethod
+    def _derived_withdrawal_reference(
+        *,
+        trader_id: str | None,
+        amount: Decimal | None,
+        occurred_at: datetime.datetime,
+    ) -> str:
+        raw_reference = "|".join(
+            (
+                trader_id or "",
+                str(amount) if amount is not None else "",
+                occurred_at.isoformat(),
+            )
+        )
+        return f"derived-{hashlib.sha256(raw_reference.encode()).hexdigest()}"
+
+
+class ChatterflyLeadParser:
+    _lead_events = {"lead", "start", "new_lead"}
+    _event_keys = PocketOptionEventParser._event_keys
+    _telegram_id_keys = (
+        "telegram_id",
+        "telegram_chat_id",
+        "chat_id",
+        "chatId",
+        "chatid",
+    )
+    _click_id_keys = PocketOptionEventParser._click_id_keys
+    _occurred_at_keys = PocketOptionEventParser._occurred_at_keys
+
+    def __init__(self, clock: Clock) -> None:
+        self._clock = clock
+
+    def is_lead(self, payload: dict[str, Any]) -> bool:
+        return self._event_name(payload) in self._lead_events
+
+    def parse(self, payload: dict[str, Any]) -> "ChatterflyLead":
+        if not self.is_lead(payload):
+            raise UnsupportedExternalEventError("Unsupported Chatterfly lead event")
+        raw_telegram_id = PocketOptionEventParser._first_text(
+            payload, self._telegram_id_keys
+        )
+        try:
+            telegram_id = int(raw_telegram_id or "")
+        except ValueError as error:
+            raise UnsupportedExternalEventError("Invalid Telegram ID") from error
+        if telegram_id <= 0:
+            raise UnsupportedExternalEventError("Invalid Telegram ID")
+
+        click_id = PocketOptionEventParser._first_text(payload, self._click_id_keys)
+        PocketOptionEventParser._require(click_id, "click_id")
+        PocketOptionEventParser._reject_unresolved_macro(click_id, "click_id")
+        if len(click_id) > 255:
+            raise UnsupportedExternalEventError("click_id is too long")
+
+        username = PocketOptionEventParser._first_text(
+            payload, ("username", "telegram_username")
+        )
+        if username is not None:
+            username = username.removeprefix("@")[:64] or None
+        first_name = PocketOptionEventParser._first_text(
+            payload, ("first_name", "name")
+        )
+        last_name = PocketOptionEventParser._first_text(payload, ("last_name",))
+        occurred_at = PocketOptionEventParser(self._clock)._parse_occurred_at(
+            PocketOptionEventParser._first(payload, self._occurred_at_keys)
+        )
+        chatterfly_id = PocketOptionEventParser._first_text(
+            payload, ("chatterfly_id", "chatterfly_chat_id", "internal_chat_id")
+        )
+        return ChatterflyLead(
+            telegram_id=telegram_id,
+            click_id=click_id,
+            chatterfly_id=chatterfly_id,
+            username=username,
+            first_name=(first_name[:255] if first_name else None),
+            last_name=(last_name[:255] if last_name else None),
+            occurred_at=occurred_at,
+        )
+
+    @classmethod
+    def _event_name(cls, payload: dict[str, Any]) -> str:
+        return (
+            PocketOptionEventParser._first_text(payload, cls._event_keys) or ""
+        ).lower()
+
+
+@dataclass(frozen=True, slots=True)
+class ChatterflyLead:
+    telegram_id: int
+    click_id: str
+    chatterfly_id: str | None
+    username: str | None
+    first_name: str | None
+    last_name: str | None
+    occurred_at: datetime.datetime
+
+    def normalized_payload(self) -> dict[str, str | int | None]:
+        return {
+            "event": ExternalEventType.LEAD.value,
+            "telegram_id": self.telegram_id,
+            "click_id": self.click_id,
+            "chatterfly_id": self.chatterfly_id,
+            "username": self.username,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "occurred_at": self.occurred_at.isoformat(),
+        }
 
 
 @dataclass(frozen=True, slots=True)
