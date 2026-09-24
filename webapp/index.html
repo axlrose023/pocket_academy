@@ -3,20 +3,24 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#10131e" />
+    <meta name="theme-color" content="#07111f" />
     <title>Pocket Academy</title>
-    <link rel="stylesheet" href="/app/styles.css?v=20260921-1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/app/styles.css?v=20260924-1" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body>
     <main class="app-shell" aria-live="polite">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">POCKET ACADEMY</p>
+        <div class="brand-copy">
+          <p class="eyebrow"><span class="brand-dot"></span>POCKET ACADEMY</p>
           <h1 id="welcome-name">Загрузка…</h1>
         </div>
-        <button class="icon-button" aria-label="Уведомления" data-action="notifications">
-          ●<span class="notification-badge" id="notification-badge" hidden></span>
+        <button class="icon-button notification-button" aria-label="Уведомления" data-action="notifications">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
+          <span class="notification-badge" id="notification-badge" hidden></span>
         </button>
       </header>
 
@@ -36,22 +40,68 @@
       </section>
 
       <section class="screen" data-screen="signals">
-        <div class="section-heading"><div><p class="eyebrow">СИГНАЛЫ</p><h2>Выбери рынок</h2></div><span class="pill" id="signal-limit">—</span></div>
-        <div class="mode-row" data-select="mode">
-          <button class="chip is-selected" data-mode="standard">Standard</button>
-          <button class="chip" data-mode="premium">Premium</button>
+        <div class="signal-hero">
+          <div>
+            <p class="eyebrow">ТОРГОВЫЕ СИГНАЛЫ</p>
+            <h2>Рынок в движении</h2>
+            <p class="muted signal-subtitle">Выбери актив и таймфрейм — сигнал появится прямо на графике.</p>
+          </div>
+          <span class="live-pill"><span></span>LIVE</span>
         </div>
-        <div class="chip-row" id="asset-options"><p class="muted">Загружаем пары…</p></div>
-        <h3>Таймфрейм</h3>
-        <div class="chip-row" id="timeframe-options"></div>
-        <p class="muted" id="signal-notice"></p>
-        <button class="primary-button" id="signal-button" data-action="signal">Получить сигнал</button>
-        <article class="signal-card" id="signal-result" hidden>
-          <p class="muted">НОВЫЙ СИГНАЛ</p>
-          <div class="signal-main"><strong id="signal-direction">—</strong><span id="signal-probability">—</span></div>
-          <p id="signal-asset">—</p>
+
+        <div class="mode-row mode-switch" data-select="mode">
+          <button class="chip is-selected" data-mode="standard"><span>Standard</span><small>Базовый</small></button>
+          <button class="chip" data-mode="premium"><span>Premium</span><small>Повышенная точность</small></button>
+          <span class="pill" id="signal-limit">—</span>
+        </div>
+
+        <article class="market-terminal">
+          <div class="terminal-head">
+            <div>
+              <span class="terminal-label">Выбранная пара</span>
+              <strong id="chart-asset">—</strong>
+            </div>
+            <div class="market-price">
+              <span id="chart-price">—</span>
+              <small id="chart-change">+0.00%</small>
+            </div>
+          </div>
+          <div class="asset-scroll" id="asset-options"><p class="muted">Загружаем пары…</p></div>
+          <div class="chart-wrap">
+            <canvas id="market-chart" aria-label="Индикативный график выбранной торговой пары"></canvas>
+            <div class="chart-watermark"><span class="pulse-dot"></span>Индикативный график</div>
+            <div class="chart-time" id="chart-clock">—</div>
+          </div>
         </article>
-        <section class="section"><div class="section-heading"><h3>Последние сигналы</h3></div><div id="signal-history"><p class="muted">Сигналов пока нет.</p></div></section>
+
+        <article class="signal-control-card">
+          <div class="control-heading">
+            <div><span class="terminal-label">Время действия</span><h3>Таймфрейм сигнала</h3></div>
+            <span class="selected-timeframe" id="selected-timeframe">—</span>
+          </div>
+          <div class="timeframe-scroll" id="timeframe-options"></div>
+          <p class="signal-notice" id="signal-notice"></p>
+          <button class="primary-button signal-button" id="signal-button" data-action="signal"><span>Получить сигнал</span><i aria-hidden="true">→</i></button>
+        </article>
+
+        <article class="signal-card" id="signal-result" hidden>
+          <div class="signal-card-glow"></div>
+          <div class="signal-card-head">
+            <span class="signal-state"><i></i>СИГНАЛ АКТИВЕН</span>
+            <span id="signal-probability">—</span>
+          </div>
+          <div class="signal-main">
+            <div class="direction-icon" id="signal-direction-icon">↑</div>
+            <div><strong id="signal-direction">—</strong><p id="signal-asset">—</p></div>
+          </div>
+          <div class="signal-timer-row">
+            <div><span>Осталось</span><strong id="signal-countdown">—</strong></div>
+            <div class="signal-expiry"><span>Завершение</span><strong id="signal-expiry">—</strong></div>
+          </div>
+          <div class="signal-progress"><span id="signal-progress"></span></div>
+        </article>
+
+        <section class="section signal-history-section"><div class="section-heading"><div><p class="eyebrow">ИСТОРИЯ</p><h3>Последние сигналы</h3></div></div><div id="signal-history"><p class="muted">Сигналов пока нет.</p></div></section>
       </section>
 
       <section class="screen" data-screen="academy">
@@ -93,7 +143,12 @@
     </aside>
     <div class="notification-toast" id="notification-toast" hidden role="status"></div>
     <div class="access-overlay" id="access-overlay" hidden><article><p class="eyebrow">POCKET ACADEMY</p><h2 id="overlay-title">Открой приложение в Telegram</h2><p class="muted" id="overlay-message">Для безопасной авторизации нужен Telegram Mini App.</p><button class="primary-button" id="overlay-manager" hidden>Написать менеджеру</button></article></div>
-    <nav class="tabbar" aria-label="Навигация"><button class="tab is-active" data-tab="home">Главная</button><button class="tab" data-tab="signals">Сигналы</button><button class="tab" data-tab="academy">Academy</button><button class="tab" data-tab="profile">Профиль</button></nav>
-    <script src="/app/app.js?v=20260921-3"></script>
+    <nav class="tabbar" aria-label="Навигация">
+      <button class="tab is-active" data-tab="home"><span class="tab-icon">⌂</span><span>Главная</span></button>
+      <button class="tab" data-tab="signals"><span class="tab-icon">↗</span><span>Сигналы</span></button>
+      <button class="tab" data-tab="academy"><span class="tab-icon">◇</span><span>Academy</span></button>
+      <button class="tab" data-tab="profile"><span class="tab-icon">○</span><span>Профиль</span></button>
+    </nav>
+    <script src="/app/app.js?v=20260924-1"></script>
   </body>
 </html>

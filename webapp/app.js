@@ -13,6 +13,7 @@ const statusNames = {
 };
 
 const state = {
+  activeSignal: null,
   assets: [],
   availability: null,
   diary: null,
@@ -27,6 +28,12 @@ const state = {
   selectedTimeframe: null,
   signals: [],
   signalMode: 'standard',
+  market: {
+    assetId: null,
+    candles: [],
+    basePrice: 1,
+    seed: 1,
+  },
 };
 
 class ApiError extends Error {}
@@ -43,6 +50,198 @@ const timeframeLabel = (seconds) => {
   return `${seconds} с`;
 };
 
+const selectedAsset = () => state.assets.find((asset) => asset.id === state.selectedAssetId) || null;
+const hashText = (value) => [...value].reduce((hash, character) => ((hash * 31) + character.charCodeAt(0)) >>> 0, 2166136261);
+const nextMarketRandom = () => {
+  state.market.seed = ((state.market.seed * 1664525) + 1013904223) >>> 0;
+  return state.market.seed / 4294967296;
+};
+
+const assetBasePrice = (label = '') => {
+  if (label.includes('USD/JPY')) return 148.42;
+  if (label.includes('GBP/USD')) return 1.2684;
+  if (label.includes('EUR/CHF')) return 0.9342;
+  if (label.includes('EUR/USD')) return 1.0842;
+  return 1 + ((hashText(label) % 2_000) / 10_000);
+};
+
+const pricePrecision = (label = '') => label.includes('JPY') ? 3 : 5;
+
+const appendMarketCandle = () => {
+  const previous = state.market.candles.at(-1);
+  const open = previous?.close ?? state.market.basePrice;
+  const asset = selectedAsset();
+  const volatility = state.market.basePrice * (asset?.is_otc ? .00105 : .00072);
+  const drift = ((nextMarketRandom() - .48) * volatility);
+  const close = Math.max(.00001, open + drift);
+  const wick = volatility * (.24 + nextMarketRandom() * .75);
+  state.market.candles.push({
+    open,
+    close,
+    high: Math.max(open, close) + (wick * nextMarketRandom()),
+    low: Math.min(open, close) - (wick * nextMarketRandom()),
+  });
+  if (state.market.candles.length > 36) state.market.candles.shift();
+};
+
+const updateMarketHeader = () => {
+  const asset = selectedAsset();
+  if (!asset) return;
+  const candles = state.market.candles;
+  const current = candles.at(-1)?.close ?? state.market.basePrice;
+  const start = candles[0]?.open ?? current;
+  const change = start ? ((current - start) / start) * 100 : 0;
+  $('#chart-asset').textContent = asset.label;
+  $('#chart-price').textContent = current.toFixed(pricePrecision(asset.label));
+  $('#chart-change').textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+  $('#chart-change').classList.toggle('is-negative', change < 0);
+  $('#chart-clock').textContent = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+};
+
+const drawMarketChart = () => {
+  const canvas = $('#market-chart');
+  if (!canvas || !state.market.candles.length) return;
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  if (!width || !height) return;
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  const targetWidth = Math.round(width * pixelRatio);
+  const targetHeight = Math.round(height * pixelRatio);
+  if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+  }
+  const context = canvas.getContext('2d');
+  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  context.clearRect(0, 0, width, height);
+
+  const candles = state.market.candles;
+  const top = 15;
+  const bottom = height - 35;
+  const left = 14;
+  const right = width - 14;
+  const plotHeight = bottom - top;
+  const plotWidth = right - left;
+  const high = Math.max(...candles.map((candle) => candle.high));
+  const low = Math.min(...candles.map((candle) => candle.low));
+  const padding = Math.max((high - low) * .14, state.market.basePrice * .00008);
+  const max = high + padding;
+  const min = low - padding;
+  const range = max - min || 1;
+  const y = (price) => top + ((max - price) / range) * plotHeight;
+
+  context.lineWidth = 1;
+  context.strokeStyle = 'rgba(136, 177, 231, .09)';
+  for (let index = 0; index <= 4; index += 1) {
+    const gridY = top + ((plotHeight / 4) * index);
+    context.beginPath();
+    context.moveTo(left, gridY);
+    context.lineTo(right, gridY);
+    context.stroke();
+  }
+  for (let index = 0; index <= 5; index += 1) {
+    const gridX = left + ((plotWidth / 5) * index);
+    context.beginPath();
+    context.moveTo(gridX, top);
+    context.lineTo(gridX, bottom);
+    context.stroke();
+  }
+
+  const step = plotWidth / candles.length;
+  const bodyWidth = Math.max(3, Math.min(8, step * .52));
+  candles.forEach((candle, index) => {
+    const x = left + (step * index) + (step / 2);
+    const rising = candle.close >= candle.open;
+    const color = rising ? '#2bd69f' : '#ff5c7a';
+    context.strokeStyle = color;
+    context.fillStyle = color;
+    context.lineWidth = 1.2;
+    context.beginPath();
+    context.moveTo(x, y(candle.high));
+    context.lineTo(x, y(candle.low));
+    context.stroke();
+    const bodyTop = Math.min(y(candle.open), y(candle.close));
+    const bodyHeight = Math.max(2, Math.abs(y(candle.open) - y(candle.close)));
+    context.fillRect(x - (bodyWidth / 2), bodyTop, bodyWidth, bodyHeight);
+  });
+
+  const currentY = y(candles.at(-1).close);
+  context.save();
+  context.setLineDash([4, 5]);
+  context.strokeStyle = 'rgba(88, 183, 255, .55)';
+  context.beginPath();
+  context.moveTo(left, currentY);
+  context.lineTo(right, currentY);
+  context.stroke();
+  context.restore();
+};
+
+const initializeMarketChart = () => {
+  const asset = selectedAsset();
+  if (!asset) return;
+  state.market.assetId = asset.id;
+  state.market.basePrice = assetBasePrice(asset.label);
+  state.market.seed = hashText(asset.asset_key || asset.label) || 1;
+  state.market.candles = [];
+  for (let index = 0; index < 32; index += 1) appendMarketCandle();
+  updateMarketHeader();
+  requestAnimationFrame(drawMarketChart);
+};
+
+const tickMarketChart = () => {
+  if (!selectedAsset()) return;
+  appendMarketCandle();
+  updateMarketHeader();
+  drawMarketChart();
+};
+
+const formatCountdown = (totalSeconds) => {
+  const seconds = Math.max(0, Math.ceil(totalSeconds));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainder = seconds % 60;
+  return hours > 0
+    ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
+    : `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
+};
+
+let signalCountdownTimer;
+const updateActiveSignalTimer = () => {
+  if (!state.activeSignal) return;
+  const now = Date.now();
+  const remaining = Math.max(0, (state.activeSignal.expiresAt - now) / 1000);
+  const ratio = Math.max(0, Math.min(100, (remaining / state.activeSignal.timeframe_seconds) * 100));
+  $('#signal-countdown').textContent = formatCountdown(remaining);
+  $('#signal-progress').style.width = `${ratio}%`;
+  const stateLabel = $('#signal-result').querySelector('.signal-state');
+  if (remaining <= 0) {
+    stateLabel.lastChild.textContent = 'СИГНАЛ ЗАВЕРШЕН';
+    clearInterval(signalCountdownTimer);
+  } else {
+    stateLabel.lastChild.textContent = 'СИГНАЛ АКТИВЕН';
+  }
+};
+
+const showActiveSignal = (signal, { includeExpired = false } = {}) => {
+  const requestedAt = new Date(signal.requested_at).getTime();
+  const expiresAt = requestedAt + (signal.timeframe_seconds * 1000);
+  if (!includeExpired && expiresAt <= Date.now()) return;
+  state.activeSignal = { ...signal, expiresAt };
+  const card = $('#signal-result');
+  const isSell = signal.direction.toLowerCase() === 'sell';
+  card.classList.toggle('is-sell', isSell);
+  card.classList.toggle('is-buy', !isSell);
+  $('#signal-direction').textContent = signal.direction.toUpperCase();
+  $('#signal-direction-icon').textContent = isSell ? '↓' : '↑';
+  $('#signal-probability').textContent = `${signal.probability}%`;
+  $('#signal-asset').textContent = `${signal.asset_label} · ${timeframeLabel(signal.timeframe_seconds)}`;
+  $('#signal-expiry').textContent = new Date(expiresAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  card.hidden = false;
+  clearInterval(signalCountdownTimer);
+  updateActiveSignalTimer();
+  if (expiresAt > Date.now()) signalCountdownTimer = setInterval(updateActiveSignalTimer, 1_000);
+};
+
 const setScreen = (screen) => {
   document.querySelectorAll('.screen').forEach((item) => {
     item.classList.toggle('is-active', item.dataset.screen === screen);
@@ -51,6 +250,7 @@ const setScreen = (screen) => {
     item.classList.toggle('is-active', item.dataset.tab === screen);
   });
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  if (screen === 'signals') requestAnimationFrame(drawMarketChart);
 };
 
 const showOverlay = (title, message, managerUrl = null) => {
@@ -217,6 +417,11 @@ const renderMoodOptions = () => {
 
 const selectedAvailability = () => state.availability?.[state.signalMode];
 
+const setSignalButtonLabel = (label) => {
+  const labelNode = $('#signal-button').querySelector('span');
+  if (labelNode) labelNode.textContent = label;
+};
+
 const renderSignalControls = () => {
   const availability = selectedAvailability();
   if (!availability) return;
@@ -229,9 +434,9 @@ const renderSignalControls = () => {
   assets.replaceChildren();
   if (!state.assets.length) {
     assets.textContent = 'Активные пары пока не добавлены администратором.';
-    assets.className = 'muted';
+    assets.className = 'asset-scroll muted';
   } else {
-    assets.className = 'chip-row';
+    assets.className = 'asset-scroll';
     state.assets.forEach((asset) => {
       const button = createButton(asset.label, 'chip');
       button.dataset.assetId = asset.id;
@@ -246,6 +451,7 @@ const renderSignalControls = () => {
   if (!allowed.includes(state.selectedTimeframe)) {
     state.selectedTimeframe = allowed[0] || null;
   }
+  $('#selected-timeframe').textContent = state.selectedTimeframe ? timeframeLabel(state.selectedTimeframe) : '—';
   allowed.forEach((seconds) => {
     const button = createButton(timeframeLabel(seconds), 'chip');
     button.dataset.timeframe = seconds;
@@ -278,28 +484,28 @@ const renderSignalControls = () => {
   );
 
   if (registrationRequired) {
-    button.textContent = 'Зарегистрироваться';
+    setSignalButtonLabel('Зарегистрироваться');
     notice.textContent = 'Сначала подключи торговый аккаунт Pocket Option.';
   } else if (depositRequired) {
-    button.textContent = 'Сделать депозит';
+    setSignalButtonLabel('Сделать депозит');
     notice.textContent = 'Первый депозит активирует торговые сигналы.';
   } else if (state.availability.is_blocked) {
-    button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
+    setSignalButtonLabel(isPremium ? 'Premium-сигнал' : 'Получить сигнал');
     notice.textContent = 'Доступ к сигналам временно ограничен.';
   } else if (premiumBlocked) {
-    button.textContent = 'Premium-сигнал';
+    setSignalButtonLabel('Premium-сигнал');
     notice.textContent = `Premium доступен от ${dollars(state.availability.premium_minimum_deposit)} депозитов.`;
   } else if (dailyLimitReached) {
-    button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
+    setSignalButtonLabel(isPremium ? 'Premium-сигнал' : 'Получить сигнал');
     notice.textContent = 'Дневной лимит сигналов исчерпан.';
   } else if (isWaiting) {
-    button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
+    setSignalButtonLabel(isPremium ? 'Premium-сигнал' : 'Получить сигнал');
     notice.textContent = `Следующий сигнал будет доступен в ${nextAvailableAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}.`;
   } else if (hasTestAccess) {
-    button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
+    setSignalButtonLabel(isPremium ? 'Premium-сигнал' : 'Получить сигнал');
     notice.textContent = 'Тестовый доступ: сигналы доступны без регистрации и депозита.';
   } else {
-    button.textContent = isPremium ? 'Premium-сигнал' : 'Получить сигнал';
+    setSignalButtonLabel(isPremium ? 'Premium-сигнал' : 'Получить сигнал');
     notice.textContent = isPremium ? 'Premium-сигналы имеют отдельный лимит.' : 'Направление и вероятность формируются для твоего статуса.';
   }
 };
@@ -360,13 +566,22 @@ const renderSignalHistory = () => {
   }
   state.signals.forEach((signal) => {
     const item = document.createElement('article');
-    item.className = 'history-item';
+    item.className = 'history-item signal-history-item';
+    const direction = document.createElement('span');
+    direction.className = `history-direction${signal.direction.toLowerCase() === 'sell' ? ' is-sell' : ''}`;
+    direction.textContent = signal.direction.toLowerCase() === 'sell' ? '↓' : '↑';
+    const copy = document.createElement('div');
+    copy.className = 'history-copy';
     const title = document.createElement('strong');
-    title.textContent = `${signal.direction.toUpperCase()} · ${signal.probability}%`;
+    title.textContent = signal.asset_label;
     const details = document.createElement('p');
     details.className = 'muted';
-    details.textContent = `${signal.asset_label} · ${timeframeLabel(signal.timeframe_seconds)}${signal.is_premium ? ' · Premium' : ''}`;
-    item.append(title, details);
+    details.textContent = `${signal.direction.toUpperCase()} · ${timeframeLabel(signal.timeframe_seconds)}${signal.is_premium ? ' · Premium' : ''}`;
+    copy.append(title, details);
+    const probability = document.createElement('span');
+    probability.className = 'history-probability';
+    probability.textContent = `${signal.probability}%`;
+    item.append(direction, copy, probability);
     root.append(item);
   });
 };
@@ -511,6 +726,8 @@ const refreshProfileAndProducts = async () => {
 const generateSignal = async () => {
   const button = $('#signal-button');
   button.disabled = true;
+  button.classList.add('is-loading');
+  setSignalButtonLabel('Анализируем рынок…');
   try {
     const signal = await api('/api/signals', {
       method: 'POST',
@@ -520,10 +737,7 @@ const generateSignal = async () => {
         is_premium: state.signalMode === 'premium',
       }),
     });
-    $('#signal-direction').textContent = signal.direction.toUpperCase();
-    $('#signal-probability').textContent = `${signal.probability}%`;
-    $('#signal-asset').textContent = `${signal.asset_label} · ${timeframeLabel(signal.timeframe_seconds)}`;
-    $('#signal-result').hidden = false;
+    showActiveSignal(signal, { includeExpired: true });
     const [availability, signals] = await Promise.all([api('/api/signals/availability'), api('/api/signals')]);
     state.availability = availability;
     state.signals = signals.signals;
@@ -536,6 +750,8 @@ const generateSignal = async () => {
     } finally {
       $('#signal-notice').textContent = error.message;
     }
+  } finally {
+    button.classList.remove('is-loading');
   }
 };
 
@@ -687,6 +903,7 @@ const bindEvents = () => {
     if (!button) return;
     state.selectedAssetId = button.dataset.assetId;
     renderSignalControls();
+    initializeMarketChart();
   });
   $('#timeframe-options').addEventListener('click', (event) => {
     const button = event.target.closest('[data-timeframe]');
@@ -756,6 +973,8 @@ const bootstrap = async () => {
     state.signals = signals.signals;
     state.selectedAssetId = state.assets[0]?.id || null;
     renderAll();
+    initializeMarketChart();
+    if (state.signals[0]) showActiveSignal(state.signals[0]);
     showNotificationToast(
       state.notifications.find((notification) => !notification.read_at),
     );
@@ -770,5 +989,15 @@ const bootstrap = async () => {
     showOverlay('Не удалось открыть Academy', error.message);
   }
 };
+
+const chartCanvas = $('#market-chart');
+if (window.ResizeObserver && chartCanvas) {
+  new ResizeObserver(() => drawMarketChart()).observe(chartCanvas);
+} else {
+  window.addEventListener('resize', drawMarketChart);
+}
+setInterval(() => {
+  if (!document.hidden) tickMarketChart();
+}, 1_400);
 
 bootstrap();
