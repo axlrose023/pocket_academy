@@ -101,9 +101,21 @@ class StorageConfig(BaseModel):
     region: str = "us-east-1"
     force_path_style: bool = False
     presigned_download_ttl_seconds: int = Field(default=900, ge=60, le=3_600)
+    local_enabled: bool = False
+    local_directory: Path = Path("/data/materials")
+    local_download_secret: SecretStr | None = None
+    local_download_ttl_seconds: int = Field(default=900, ge=60, le=3_600)
 
     @model_validator(mode="after")
     def validate_enabled_storage(self) -> "StorageConfig":
+        if self.enabled and self.local_enabled:
+            raise ValueError("S3 and local material storage cannot be enabled together")
+        if self.local_enabled:
+            if not _has_secret_value(self.local_download_secret):
+                raise ValueError(
+                    "BOT_STORAGE__LOCAL_DOWNLOAD_SECRET is required when local storage is enabled"
+                )
+            return self
         if not self.enabled:
             return self
         if self.bucket is None or not self.bucket.strip():

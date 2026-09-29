@@ -1,13 +1,18 @@
 import asyncio
+import hashlib
+import hmac
 import logging
+import time
+from pathlib import Path
 from typing import Protocol
+from urllib.parse import urlencode
 
 import boto3
 from botocore.config import Config as BotocoreConfig
 from botocore.exceptions import BotoCoreError, ClientError
 from pydantic import SecretStr
 
-from config import StorageConfig
+from config import ApiConfig, StorageConfig
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +73,70 @@ class S3MaterialStorage:
             ExpiresIn=self._expires_in,
             HttpMethod="GET",
         )
+
+
+class LocalMaterialStorage:
+    """Creates short-lived links for private files stored in the app volume."""
+
+    def __init__(self, storage: StorageConfig, api: ApiConfig) -> None:
+        if not storage.local_enabled:
+            raise MaterialStorageError("Local material storage is disabled")
+        if api.public_base_url is None or not api.public_base_url.strip():
+            raise MaterialStorageError(
+                "API public base URL is required for local material storage"
+            )
+        secret = _secret_value(storage.local_download_secret)
+        if secret is None:
+            raise MaterialStorageError("Local material storage secret is not configured")
+        self._public_base_url = api.public_base_url.rstrip("/")
+        self._secret = secret
+        self._ttl_seconds = storage.local_download_ttl_seconds
+
+    async def download_url(self, storage_key: str | None) -> str | None:
+        if storage_key is None or not storage_key.strip():
+            return None
+        normalized_key = storage_key.strip()
+        expires_at = int(time.time()) + self._ttl_seconds
+        signature = create_local_material_signature(
+            storage_key=normalized_key,
+            expires_at=expires_at,
+            secret=self._secret,
+        )
+        query = urlencode(
+            {"key": normalized_key, "expires": expires_at, "signature": signature}
+        )
+        return f"{self._public_base_url}/api/materials/download?{query}"
+
+
+def create_local_material_signature(
+    *, storage_key: str, expires_at: int, secret: str
+) -> str:
+    payload = f"{storage_key}:{expires_at}".encode()
+    return hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+
+
+def verify_local_material_signature(
+    *, storage_key: str, expires_at: int, signature: str, secret: str
+) -> bool:
+    if expires_at < int(time.time()):
+        return False
+    expected = create_local_material_signature(
+        storage_key=storage_key,
+        expires_at=expires_at,
+        secret=secret,
+    )
+    return hmac.compare_digest(signature, expected)
+
+
+def resolve_local_material_path(*, root: Path, storage_key: str) -> Path:
+    """Resolve a material key without allowing a path to escape its storage root."""
+    base = root.resolve()
+    candidate = (base / storage_key).resolve()
+    try:
+        candidate.relative_to(base)
+    except ValueError as error:
+        raise MaterialStorageError("Invalid material key") from error
+    return candidate
 
 
 def _required_bucket(config: StorageConfig) -> str:

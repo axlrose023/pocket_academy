@@ -21,6 +21,8 @@ services:
     restart: unless-stopped
     expose:
       - "8000"
+    volumes:
+      - ./materials:/data/materials:ro
     depends_on:
       migrate:
         condition: service_completed_successfully

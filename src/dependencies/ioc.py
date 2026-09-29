@@ -26,7 +26,12 @@ from services import (
     UserService,
 )
 from services.access import AccessService
-from services.storage import DisabledMaterialStorage, MaterialStorage, S3MaterialStorage
+from services.storage import (
+    DisabledMaterialStorage,
+    LocalMaterialStorage,
+    MaterialStorage,
+    S3MaterialStorage,
+)
 
 
 class AppProvider(Provider):
@@ -103,9 +108,11 @@ class AppProvider(Provider):
 
     @provide(scope=Scope.APP)
     def material_storage(self, config: Config) -> MaterialStorage:
-        if not config.storage.enabled:
-            return DisabledMaterialStorage()
-        return S3MaterialStorage(config.storage)
+        if config.storage.enabled:
+            return S3MaterialStorage(config.storage)
+        if config.storage.local_enabled:
+            return LocalMaterialStorage(config.storage, config.api)
+        return DisabledMaterialStorage()
 
     @provide(scope=Scope.APP)
     def diary_service(self) -> DiaryService:
