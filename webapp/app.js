@@ -859,6 +859,19 @@ const openProductMaterials = async (product) => {
   $('#material-panel').hidden = false;
   $('#material-panel-title').textContent = product.title;
   const root = $('#material-list');
+
+  // A bundle does not own files itself: it unlocks the courses included in it.
+  // This also gives a sensible result if a previously cached interface opens it.
+  if (product.is_bundle) {
+    root.replaceChildren(
+      Object.assign(document.createElement('p'), {
+        className: 'muted',
+        textContent: 'Этот пакет открывает все курсы Academy: ИИ, Паттерны, Индикаторы и Технический анализ.',
+      }),
+    );
+    return;
+  }
+
   root.replaceChildren(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Загружаем материалы…' }));
   try {
     const payload = await api(`/api/products/${product.id}/materials`);
