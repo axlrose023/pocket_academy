@@ -10,6 +10,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -67,6 +68,30 @@ class ProductMaterial(Base):
     storage_key: Mapped[str | None] = mapped_column(String(1024))
     external_url: Mapped[str | None] = mapped_column(Text)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class ProductBundleItem(Base):
+    """A product unlocked together with a paid bundle product."""
+
+    __tablename__ = "product_bundle_items"
+    __table_args__ = (
+        UniqueConstraint(
+            "bundle_product_id",
+            "included_product_id",
+            name="product_bundle_item_unique",
+        ),
+        CheckConstraint(
+            "bundle_product_id <> included_product_id", name="different_products"
+        ),
+    )
+
+    id: Mapped[uuid_pk]
+    bundle_product_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True
+    )
+    included_product_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True
+    )
 
 
 class UserProductAccess(Base):

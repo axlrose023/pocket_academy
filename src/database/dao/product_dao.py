@@ -4,7 +4,12 @@ from decimal import Decimal
 from sqlalchemy import and_, exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import Product, ProductMaterial, UserProductAccess
+from database.models import (
+    Product,
+    ProductBundleItem,
+    ProductMaterial,
+    UserProductAccess,
+)
 
 FREE_PRODUCT_ACCESS = and_(
     Product.price_pac == 0,
@@ -25,20 +30,27 @@ class ProductDAO:
 
     async def list_published_with_access(
         self, *, user_id: uuid.UUID
-    ) -> list[tuple[Product, bool]]:
+    ) -> list[tuple[Product, bool, bool]]:
         access_exists = exists().where(
             UserProductAccess.user_id == user_id,
             UserProductAccess.product_id == Product.id,
+        )
+        bundle_exists = exists().where(
+            ProductBundleItem.bundle_product_id == Product.id
         )
         rows = await self._session.execute(
             select(
                 Product,
                 or_(access_exists, FREE_PRODUCT_ACCESS).label("has_access"),
+                bundle_exists.label("is_bundle"),
             )
             .where(Product.is_published.is_(True))
             .order_by(Product.sort_order, Product.created_at)
         )
-        return [(product, bool(has_access)) for product, has_access in rows]
+        return [
+            (product, bool(has_access), bool(is_bundle))
+            for product, has_access, is_bundle in rows
+        ]
 
     async def has_access(self, *, user_id: uuid.UUID, product_id: uuid.UUID) -> bool:
         return (
@@ -119,6 +131,24 @@ class ProductDAO:
                         Product.is_published.is_(True),
                         Product.grant_condition == "registration",
                     )
+                )
+            ).all()
+        )
+
+    async def bundle_products(self, bundle_product_id: uuid.UUID) -> list[Product]:
+        return list(
+            (
+                await self._session.scalars(
+                    select(Product)
+                    .join(
+                        ProductBundleItem,
+                        ProductBundleItem.included_product_id == Product.id,
+                    )
+                    .where(
+                        ProductBundleItem.bundle_product_id == bundle_product_id,
+                        Product.is_published.is_(True),
+                    )
+                    .order_by(Product.sort_order, Product.created_at)
                 )
             ).all()
         )

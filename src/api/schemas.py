@@ -109,6 +109,7 @@ class ProductResponse(BaseModel):
     grant_condition: str
     grant_deposit_threshold: Decimal | None
     is_available: bool
+    is_bundle: bool
     external_url: str | None
 
 

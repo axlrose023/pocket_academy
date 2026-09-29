@@ -599,6 +599,14 @@ const renderProfileCollections = () => {
       const title = document.createElement('strong');
       title.textContent = product.title;
       item.append(title);
+      if (product.is_bundle) {
+        item.append(Object.assign(document.createElement('span'), {
+          className: 'muted',
+          textContent: 'Открывает все курсы Academy.',
+        }));
+        productsRoot.append(item);
+        return;
+      }
       const button = createButton('Открыть', 'text-button');
       if (product.external_url && ['group', 'bot'].includes(product.product_type)) {
         button.addEventListener('click', () => openExternal(product.external_url));
@@ -648,6 +656,11 @@ const renderProfileCollections = () => {
 };
 
 const productAction = (product) => {
+  if (product.is_bundle && product.is_available) {
+    const button = createButton('Все курсы открыты');
+    button.disabled = true;
+    return button;
+  }
   if (product.is_available && product.external_url && ['group', 'bot'].includes(product.product_type)) {
     const button = createButton('Открыть');
     button.addEventListener('click', () => openExternal(product.external_url));

@@ -45,6 +45,19 @@ class ProductService:
                 note=product.title,
             )
         await self._notify_access(uow, user_id=user_id, product=product)
+        for bundled_product in await uow.products.bundle_products(product.id):
+            if await uow.products.has_access(
+                user_id=user_id, product_id=bundled_product.id
+            ):
+                continue
+            await uow.products.grant(
+                user_id=user_id,
+                product_id=bundled_product.id,
+                source=ProductAccessSource.PURCHASE.value,
+            )
+            await self._notify_access(
+                uow, user_id=user_id, product=bundled_product
+            )
         return access
 
     async def grant_automatic(

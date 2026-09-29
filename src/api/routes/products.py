@@ -31,8 +31,9 @@ async def list_products(
             _product_response(
                 product,
                 is_available=is_available or context.user.is_test_access,
+                is_bundle=is_bundle,
             )
-            for product, is_available in products_with_access
+            for product, is_available, is_bundle in products_with_access
         ]
     )
 
@@ -105,7 +106,9 @@ async def list_product_materials(
     return ProductMaterialListResponse(materials=response_materials)
 
 
-def _product_response(product: Product, *, is_available: bool) -> ProductResponse:
+def _product_response(
+    product: Product, *, is_available: bool, is_bundle: bool
+) -> ProductResponse:
     return ProductResponse(
         id=product.id,
         title=product.title,
@@ -115,5 +118,6 @@ def _product_response(product: Product, *, is_available: bool) -> ProductRespons
         grant_condition=product.grant_condition,
         grant_deposit_threshold=product.grant_deposit_threshold,
         is_available=is_available,
+        is_bundle=is_bundle,
         external_url=product.external_url if is_available else None,
     )
