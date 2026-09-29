@@ -84,7 +84,7 @@ h3 { margin: 24px 0 12px; font-size: 18px; font-weight: 750; letter-spacing: -.0
 .screen.is-active > *:nth-child(5) { animation-delay: .16s; }
 
 /* Keep the Academy heading clear of the filter row on compact Telegram screens. */
-.screen[data-screen="academy"] .section-heading { margin-top: -3px; margin-bottom: 5px; }
+.screen[data-screen="academy"] .section-heading { margin-top: 0; margin-bottom: 14px; }
 
 .status-card, .hint-card, .signal-card, .status-tree, .diary, .product-card { padding: 20px; margin: 16px 0; background: linear-gradient(145deg, rgba(17, 31, 52, .96), rgba(10, 22, 38, .94)); border: 1px solid var(--line); border-radius: 22px; box-shadow: inset 0 1px 0 rgba(255,255,255,.03), var(--shadow); }
 .status-card strong { font-size: 28px; letter-spacing: -.035em; }
