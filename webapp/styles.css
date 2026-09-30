@@ -221,6 +221,22 @@ textarea { min-height: 88px; margin-top: 12px; resize: vertical; }
 
 .side-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 10; width: min(420px, 100%); max-width: 100vw; padding: 25px 19px; overflow: auto; overflow-x: hidden; background: rgba(5,13,25,.98); border-left: 1px solid var(--line); box-shadow: -16px 0 45px rgba(0,0,0,.38); animation: panel-in .3s ease both; backdrop-filter: blur(20px); }
 .side-panel[hidden], .access-overlay[hidden] { display: none; }
+.document-viewer { position: fixed; inset: 0; z-index: 14; display: flex; height: 100vh; height: 100dvh; flex-direction: column; background: var(--bg-deep); animation: screen-in .25s ease both; }
+.document-viewer[hidden] { display: none; }
+.document-viewer-head { display: flex; flex: 0 0 auto; min-height: 76px; padding: calc(15px + env(safe-area-inset-top)) 16px 13px; align-items: center; justify-content: space-between; gap: 14px; background: linear-gradient(135deg, #0b1b30, #081424); border-bottom: 1px solid var(--line); }
+.document-viewer-title { min-width: 0; }
+.document-viewer-title .eyebrow { margin-bottom: 4px; }
+.document-viewer-title h2 { overflow: hidden; max-width: 100%; font-size: clamp(18px, 5vw, 24px); text-overflow: ellipsis; white-space: nowrap; }
+.document-toolbar { display: grid; flex: 0 0 auto; grid-template-columns: 40px 40px minmax(54px, 1fr) 40px auto 40px; padding: 8px 12px; align-items: center; gap: 7px; background: rgba(13,26,44,.98); border-bottom: 1px solid var(--line); }
+.document-tool { display: grid; width: 40px; height: 40px; padding: 0; place-items: center; color: var(--blue-soft); background: rgba(22,143,255,.1); border: 1px solid var(--line); border-radius: 11px; font-size: 24px; line-height: 1; }
+.document-tool:disabled { opacity: .35; }
+.document-page, .document-zoom { color: var(--muted); font-size: 12px; font-weight: 700; text-align: center; white-space: nowrap; }
+.document-stage { flex: 1 1 auto; min-height: 0; padding: 14px; overflow: auto; overscroll-behavior: contain; background: #111827; }
+.document-stage canvas { display: block; max-width: none; margin: 0 auto; background: #fff; border-radius: 3px; box-shadow: 0 12px 36px rgba(0,0,0,.42); }
+.document-stage canvas[hidden], .document-message[hidden] { display: none; }
+.document-message { max-width: 420px; margin: 25vh auto 0; color: var(--muted); font-size: 14px; line-height: 1.55; text-align: center; }
+.document-message.is-error { color: #ff9bad; }
+body.document-open { overflow: hidden; }
 .notification-item { padding: 16px 0; border-bottom: 1px solid var(--line); }
 .notification-item p { margin: 6px 0; color: var(--muted); }
 .notification-item time { font-size: 11px; }

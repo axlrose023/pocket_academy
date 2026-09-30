@@ -1,6 +1,8 @@
 {$CADDY_SITE_ADDRESS} {
     encode zstd gzip
-    @webapp path /app /app/*
-    header @webapp Cache-Control "no-store, no-cache, must-revalidate"
+    @webappIndex path /app /app/
+    header @webappIndex Cache-Control "no-store, no-cache, must-revalidate"
+    @webappAssets path /app/app.js /app/styles.css /app/vendor/pdfjs/*
+    header @webappAssets Cache-Control "public, max-age=31536000, immutable"
     reverse_proxy api:8000
 }

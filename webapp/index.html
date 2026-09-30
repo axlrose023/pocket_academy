@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/app/styles.css?v=20260929-3" />
+    <link rel="stylesheet" href="/app/styles.css?v=20260930-1" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body>
@@ -141,6 +141,24 @@
       <div class="section-heading"><h2 id="material-panel-title">Материалы</h2><button class="icon-button" data-action="close-materials" aria-label="Закрыть">×</button></div>
       <div id="material-list"><p class="muted">Загружаем материалы…</p></div>
     </aside>
+    <aside class="document-viewer" id="document-viewer" hidden aria-label="Просмотр материала">
+      <header class="document-viewer-head">
+        <div class="document-viewer-title"><p class="eyebrow">МАТЕРИАЛ КУРСА</p><h2 id="document-title">Документ</h2></div>
+        <button class="icon-button" data-action="close-document" aria-label="Закрыть документ">×</button>
+      </header>
+      <div class="document-toolbar" aria-label="Управление документом">
+        <button class="document-tool" id="document-previous" aria-label="Предыдущая страница">‹</button>
+        <button class="document-tool" id="document-next" aria-label="Следующая страница">›</button>
+        <span class="document-page" id="document-page">—</span>
+        <button class="document-tool" id="document-zoom-out" aria-label="Уменьшить">−</button>
+        <span class="document-zoom" id="document-zoom">100%</span>
+        <button class="document-tool" id="document-zoom-in" aria-label="Увеличить">+</button>
+      </div>
+      <div class="document-stage" id="document-stage">
+        <p class="document-message" id="document-message">Загружаем материал…</p>
+        <canvas id="document-canvas" hidden></canvas>
+      </div>
+    </aside>
     <div class="notification-toast" id="notification-toast" hidden role="status"></div>
     <div class="access-overlay" id="access-overlay" hidden><article><p class="eyebrow">POCKET ACADEMY</p><h2 id="overlay-title">Открой приложение в Telegram</h2><p class="muted" id="overlay-message">Для безопасной авторизации нужен Telegram Mini App.</p><button class="primary-button" id="overlay-manager" hidden>Написать менеджеру</button></article></div>
     <nav class="tabbar" aria-label="Навигация">
@@ -149,6 +167,6 @@
       <button class="tab" data-tab="academy"><span class="tab-icon">◇</span><span>Academy</span></button>
       <button class="tab" data-tab="profile"><span class="tab-icon">○</span><span>Профиль</span></button>
     </nav>
-    <script src="/app/app.js?v=20260929-2"></script>
+    <script src="/app/app.js?v=20260930-1"></script>
   </body>
 </html>

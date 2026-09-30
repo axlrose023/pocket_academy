@@ -36,6 +36,19 @@ const state = {
   },
 };
 
+const documentState = {
+  loadingTask: null,
+  pageNumber: 1,
+  pdf: null,
+  renderId: 0,
+  renderTask: null,
+  requestId: 0,
+  zoom: 1,
+};
+
+let documentResizeTimer;
+let pdfLibraryPromise;
+
 class ApiError extends Error {}
 
 const $ = (selector) => document.querySelector(selector);
@@ -854,6 +867,141 @@ const openPocketOptionRegistration = async (button, forceNew) => {
   }
 };
 
+const loadPdfLibrary = () => {
+  if (!pdfLibraryPromise) {
+    pdfLibraryPromise = import('/app/vendor/pdfjs/pdf.mjs?v=4.10.38').then((pdfjs) => {
+      pdfjs.GlobalWorkerOptions.workerSrc = '/app/vendor/pdfjs/pdf.worker.mjs?v=4.10.38';
+      return pdfjs;
+    });
+  }
+  return pdfLibraryPromise;
+};
+
+const updateDocumentControls = () => {
+  const hasDocument = Boolean(documentState.pdf);
+  const pageCount = documentState.pdf?.numPages || 0;
+  $('#document-previous').disabled = !hasDocument || documentState.pageNumber <= 1;
+  $('#document-next').disabled = !hasDocument || documentState.pageNumber >= pageCount;
+  $('#document-zoom-out').disabled = !hasDocument || documentState.zoom <= .75;
+  $('#document-zoom-in').disabled = !hasDocument || documentState.zoom >= 2;
+  $('#document-page').textContent = hasDocument ? `${documentState.pageNumber} / ${pageCount}` : '—';
+  $('#document-zoom').textContent = `${Math.round(documentState.zoom * 100)}%`;
+};
+
+const setDocumentMessage = (message, isError = false) => {
+  const root = $('#document-message');
+  root.textContent = message;
+  root.classList.toggle('is-error', isError);
+  root.hidden = false;
+};
+
+const renderDocumentPage = async () => {
+  const pdf = documentState.pdf;
+  if (!pdf) return;
+
+  const renderId = ++documentState.renderId;
+  documentState.renderTask?.cancel();
+  documentState.renderTask = null;
+  setDocumentMessage('Открываем страницу…');
+
+  try {
+    const page = await pdf.getPage(documentState.pageNumber);
+    if (renderId !== documentState.renderId) return;
+
+    const stage = $('#document-stage');
+    const canvas = $('#document-canvas');
+    const unscaledViewport = page.getViewport({ scale: 1 });
+    const availableWidth = Math.max(240, stage.clientWidth - 28);
+    const viewport = page.getViewport({
+      scale: (availableWidth / unscaledViewport.width) * documentState.zoom,
+    });
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const context = canvas.getContext('2d', { alpha: false });
+    canvas.width = Math.floor(viewport.width * pixelRatio);
+    canvas.height = Math.floor(viewport.height * pixelRatio);
+    canvas.style.width = `${Math.floor(viewport.width)}px`;
+    canvas.style.height = `${Math.floor(viewport.height)}px`;
+    const renderTask = page.render({
+      canvasContext: context,
+      viewport,
+      transform: pixelRatio === 1 ? null : [pixelRatio, 0, 0, pixelRatio, 0, 0],
+    });
+    documentState.renderTask = renderTask;
+    await renderTask.promise;
+    if (renderId !== documentState.renderId) return;
+
+    canvas.hidden = false;
+    $('#document-message').hidden = true;
+    stage.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    updateDocumentControls();
+  } catch (error) {
+    if (error?.name === 'RenderingCancelledException') return;
+    setDocumentMessage('Не удалось отобразить эту страницу. Закрой материал и попробуй открыть его ещё раз.', true);
+  } finally {
+    if (renderId === documentState.renderId) documentState.renderTask = null;
+  }
+};
+
+const closeDocument = () => {
+  documentState.requestId += 1;
+  documentState.renderId += 1;
+  documentState.renderTask?.cancel();
+  documentState.renderTask = null;
+  const pdf = documentState.pdf;
+  const loadingTask = documentState.loadingTask;
+  documentState.pdf = null;
+  documentState.loadingTask = null;
+  if (pdf) void pdf.destroy();
+  else if (loadingTask) void loadingTask.destroy();
+  $('#document-canvas').hidden = true;
+  $('#document-canvas').width = 0;
+  $('#document-canvas').height = 0;
+  $('#document-viewer').hidden = true;
+  document.body.classList.remove('document-open');
+  telegram?.BackButton?.hide();
+  updateDocumentControls();
+};
+
+const openDocument = async (material) => {
+  const requestId = ++documentState.requestId;
+  documentState.pageNumber = 1;
+  documentState.zoom = 1;
+  $('#document-title').textContent = material.title;
+  $('#document-canvas').hidden = true;
+  $('#document-viewer').hidden = false;
+  document.body.classList.add('document-open');
+  telegram?.BackButton?.show();
+  setDocumentMessage('Загружаем материал…');
+  updateDocumentControls();
+
+  try {
+    const pdfjs = await loadPdfLibrary();
+    if (requestId !== documentState.requestId) return;
+    const loadingTask = pdfjs.getDocument({
+      url: material.external_url,
+      disableRange: true,
+      disableStream: true,
+    });
+    documentState.loadingTask = loadingTask;
+    loadingTask.onProgress = ({ loaded, total }) => {
+      if (requestId !== documentState.requestId || !total) return;
+      setDocumentMessage(`Загружаем материал… ${Math.min(100, Math.round((loaded / total) * 100))}%`);
+    };
+    const pdf = await loadingTask.promise;
+    if (requestId !== documentState.requestId) {
+      void pdf.destroy();
+      return;
+    }
+    documentState.pdf = pdf;
+    updateDocumentControls();
+    await renderDocumentPage();
+  } catch {
+    if (requestId === documentState.requestId) {
+      setDocumentMessage('Не удалось загрузить материал. Закрой его и попробуй открыть ещё раз.', true);
+    }
+  }
+};
+
 const openProductMaterials = async (product) => {
   window.scrollTo({ left: 0, behavior: 'auto' });
   $('#material-panel').hidden = false;
@@ -887,8 +1035,12 @@ const openProductMaterials = async (product) => {
       title.textContent = material.title;
       item.append(title);
       if (material.external_url) {
-        const button = createButton('Открыть', 'text-button');
-        button.addEventListener('click', () => openExternal(material.external_url));
+        const isPdf = material.content_type === 'pdf';
+        const button = createButton(isPdf ? 'Смотреть' : 'Открыть', 'text-button');
+        button.addEventListener('click', () => {
+          if (isPdf) void openDocument(material);
+          else openExternal(material.external_url);
+        });
         item.append(button);
       } else {
         const note = document.createElement('span');
@@ -966,6 +1118,37 @@ const bindEvents = () => {
   });
   $('[data-action="close-materials"]').addEventListener('click', () => {
     $('#material-panel').hidden = true;
+  });
+  $('[data-action="close-document"]').addEventListener('click', closeDocument);
+  $('#document-previous').addEventListener('click', () => {
+    if (!documentState.pdf || documentState.pageNumber <= 1) return;
+    documentState.pageNumber -= 1;
+    updateDocumentControls();
+    void renderDocumentPage();
+  });
+  $('#document-next').addEventListener('click', () => {
+    if (!documentState.pdf || documentState.pageNumber >= documentState.pdf.numPages) return;
+    documentState.pageNumber += 1;
+    updateDocumentControls();
+    void renderDocumentPage();
+  });
+  $('#document-zoom-out').addEventListener('click', () => {
+    if (!documentState.pdf || documentState.zoom <= .75) return;
+    documentState.zoom = Math.max(.75, documentState.zoom - .25);
+    updateDocumentControls();
+    void renderDocumentPage();
+  });
+  $('#document-zoom-in').addEventListener('click', () => {
+    if (!documentState.pdf || documentState.zoom >= 2) return;
+    documentState.zoom = Math.min(2, documentState.zoom + .25);
+    updateDocumentControls();
+    void renderDocumentPage();
+  });
+  telegram?.BackButton?.onClick(closeDocument);
+  window.addEventListener('resize', () => {
+    if ($('#document-viewer').hidden || !documentState.pdf) return;
+    clearTimeout(documentResizeTimer);
+    documentResizeTimer = setTimeout(() => void renderDocumentPage(), 150);
   });
 };
 
