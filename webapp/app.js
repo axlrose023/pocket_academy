@@ -43,6 +43,7 @@ const documentState = {
   renderId: 0,
   renderTask: null,
   requestId: 0,
+  swipeStart: null,
   zoom: 1,
 };
 
@@ -886,10 +887,24 @@ const updateDocumentControls = () => {
   $('#document-zoom-in').disabled = !hasDocument || documentState.zoom >= 2;
   $('#document-page').textContent = hasDocument ? `${documentState.pageNumber} / ${pageCount}` : '—';
   $('#document-zoom').textContent = `${Math.round(documentState.zoom * 100)}%`;
+  $('#document-stage').classList.toggle('is-zoomed', documentState.zoom > 1);
+};
+
+const setDocumentLoading = (message, progress = null) => {
+  const loader = $('#document-loader');
+  const normalizedProgress = Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : null;
+  $('#document-loader-text').textContent = message;
+  $('#document-loader-progress').style.width = normalizedProgress === null ? '' : `${normalizedProgress}%`;
+  loader.classList.toggle('is-indeterminate', normalizedProgress === null);
+  loader.hidden = false;
+  $('#document-message').hidden = true;
+  $('#document-canvas').hidden = true;
 };
 
 const setDocumentMessage = (message, isError = false) => {
   const root = $('#document-message');
+  $('#document-loader').hidden = true;
+  $('#document-canvas').hidden = true;
   root.textContent = message;
   root.classList.toggle('is-error', isError);
   root.hidden = false;
@@ -902,7 +917,7 @@ const renderDocumentPage = async () => {
   const renderId = ++documentState.renderId;
   documentState.renderTask?.cancel();
   documentState.renderTask = null;
-  setDocumentMessage('Открываем страницу…');
+  setDocumentLoading(`Открываем страницу ${documentState.pageNumber} из ${pdf.numPages}…`, 100);
 
   try {
     const page = await pdf.getPage(documentState.pageNumber);
@@ -931,6 +946,7 @@ const renderDocumentPage = async () => {
     if (renderId !== documentState.renderId) return;
 
     canvas.hidden = false;
+    $('#document-loader').hidden = true;
     $('#document-message').hidden = true;
     stage.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     updateDocumentControls();
@@ -942,11 +958,22 @@ const renderDocumentPage = async () => {
   }
 };
 
+const changeDocumentPage = (offset) => {
+  if (!documentState.pdf) return;
+  const nextPage = Math.max(1, Math.min(documentState.pdf.numPages, documentState.pageNumber + offset));
+  if (nextPage === documentState.pageNumber) return;
+  documentState.pageNumber = nextPage;
+  updateDocumentControls();
+  telegram?.HapticFeedback?.selectionChanged?.();
+  void renderDocumentPage();
+};
+
 const closeDocument = () => {
   documentState.requestId += 1;
   documentState.renderId += 1;
   documentState.renderTask?.cancel();
   documentState.renderTask = null;
+  documentState.swipeStart = null;
   const pdf = documentState.pdf;
   const loadingTask = documentState.loadingTask;
   documentState.pdf = null;
@@ -956,6 +983,8 @@ const closeDocument = () => {
   $('#document-canvas').hidden = true;
   $('#document-canvas').width = 0;
   $('#document-canvas').height = 0;
+  $('#document-loader').hidden = true;
+  $('#document-message').hidden = true;
   $('#document-viewer').hidden = true;
   document.body.classList.remove('document-open');
   telegram?.BackButton?.hide();
@@ -971,7 +1000,7 @@ const openDocument = async (material) => {
   $('#document-viewer').hidden = false;
   document.body.classList.add('document-open');
   telegram?.BackButton?.show();
-  setDocumentMessage('Загружаем материал…');
+  setDocumentLoading('Подготавливаем просмотрщик…', 8);
   updateDocumentControls();
 
   try {
@@ -985,7 +1014,8 @@ const openDocument = async (material) => {
     documentState.loadingTask = loadingTask;
     loadingTask.onProgress = ({ loaded, total }) => {
       if (requestId !== documentState.requestId || !total) return;
-      setDocumentMessage(`Загружаем материал… ${Math.min(100, Math.round((loaded / total) * 100))}%`);
+      const progress = Math.min(100, Math.round((loaded / total) * 100));
+      setDocumentLoading(`Загружено ${progress}%`, progress);
     };
     const pdf = await loadingTask.promise;
     if (requestId !== documentState.requestId) {
@@ -1120,18 +1150,8 @@ const bindEvents = () => {
     $('#material-panel').hidden = true;
   });
   $('[data-action="close-document"]').addEventListener('click', closeDocument);
-  $('#document-previous').addEventListener('click', () => {
-    if (!documentState.pdf || documentState.pageNumber <= 1) return;
-    documentState.pageNumber -= 1;
-    updateDocumentControls();
-    void renderDocumentPage();
-  });
-  $('#document-next').addEventListener('click', () => {
-    if (!documentState.pdf || documentState.pageNumber >= documentState.pdf.numPages) return;
-    documentState.pageNumber += 1;
-    updateDocumentControls();
-    void renderDocumentPage();
-  });
+  $('#document-previous').addEventListener('click', () => changeDocumentPage(-1));
+  $('#document-next').addEventListener('click', () => changeDocumentPage(1));
   $('#document-zoom-out').addEventListener('click', () => {
     if (!documentState.pdf || documentState.zoom <= .75) return;
     documentState.zoom = Math.max(.75, documentState.zoom - .25);
@@ -1143,6 +1163,35 @@ const bindEvents = () => {
     documentState.zoom = Math.min(2, documentState.zoom + .25);
     updateDocumentControls();
     void renderDocumentPage();
+  });
+  const documentStage = $('#document-stage');
+  documentStage.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse' || !documentState.pdf || documentState.zoom > 1) return;
+    documentState.swipeStart = {
+      id: event.pointerId,
+      time: performance.now(),
+      x: event.clientX,
+      y: event.clientY,
+    };
+    try {
+      documentStage.setPointerCapture(event.pointerId);
+    } catch {
+      // Some embedded browsers do not expose pointer capture; swiping still works.
+    }
+  });
+  documentStage.addEventListener('pointerup', (event) => {
+    const start = documentState.swipeStart;
+    documentState.swipeStart = null;
+    if (!start || start.id !== event.pointerId || documentState.zoom > 1) return;
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+    const duration = performance.now() - start.time;
+    if (duration > 1_200 || Math.abs(deltaX) < 55 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) return;
+    event.preventDefault();
+    changeDocumentPage(deltaX < 0 ? 1 : -1);
+  });
+  documentStage.addEventListener('pointercancel', () => {
+    documentState.swipeStart = null;
   });
   telegram?.BackButton?.onClick(closeDocument);
   window.addEventListener('resize', () => {

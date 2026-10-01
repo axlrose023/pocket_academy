@@ -234,9 +234,19 @@ textarea { min-height: 88px; margin-top: 12px; resize: vertical; }
 .document-tool { display: grid; width: 40px; height: 40px; padding: 0; place-items: center; color: var(--blue-soft); background: rgba(22,143,255,.1); border: 1px solid var(--line); border-radius: 11px; font-size: 24px; line-height: 1; }
 .document-tool:disabled { opacity: .35; }
 .document-page, .document-zoom { color: var(--muted); font-size: 12px; font-weight: 700; text-align: center; white-space: nowrap; }
-.document-stage { flex: 1 1 auto; min-height: 0; padding: 14px; overflow: auto; overscroll-behavior: contain; background: #111827; }
-.document-stage canvas { display: block; max-width: none; margin: 0 auto; background: #fff; border-radius: 3px; box-shadow: 0 12px 36px rgba(0,0,0,.42); }
-.document-stage canvas[hidden], .document-message[hidden] { display: none; }
+.document-stage { position: relative; flex: 1 1 auto; min-height: 0; padding: 14px; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; background: #111827; }
+.document-stage.is-zoomed { touch-action: pan-x pan-y; }
+.document-stage canvas { display: block; max-width: none; margin: 0 auto; background: #fff; border-radius: 3px; box-shadow: 0 12px 36px rgba(0,0,0,.42); animation: document-page-in .2s ease both; }
+.document-stage canvas[hidden], .document-loader[hidden], .document-message[hidden] { display: none; }
+.document-loader { width: min(280px, calc(100% - 28px)); padding: 24px 22px; margin: 20vh auto 0; color: var(--text); background: linear-gradient(145deg, rgba(15,39,67,.96), rgba(7,22,40,.98)); border: 1px solid rgba(69,172,255,.3); border-radius: 22px; box-shadow: 0 18px 55px rgba(0,0,0,.34), 0 0 34px rgba(22,143,255,.09); text-align: center; }
+.document-loader-mark { position: relative; width: 58px; height: 58px; margin: 0 auto 16px; border: 3px solid rgba(79,178,255,.16); border-top-color: var(--blue); border-right-color: var(--cyan); border-radius: 50%; animation: document-loader-spin 1s linear infinite; }
+.document-loader-mark::after { position: absolute; inset: 7px; content: ""; border: 1px solid rgba(80,202,255,.24); border-radius: 50%; }
+.document-loader-mark span { position: absolute; top: 50%; left: 50%; width: 15px; height: 15px; background: linear-gradient(135deg, var(--blue), var(--cyan)); border-radius: 4px; box-shadow: 0 0 18px rgba(73,189,255,.65); transform: translate(-50%, -50%) rotate(45deg); animation: document-loader-pulse 1.25s ease-in-out infinite; }
+.document-loader strong { display: block; margin-bottom: 5px; font-size: 15px; }
+.document-loader > span { display: block; min-height: 19px; color: var(--muted); font-size: 12px; }
+.document-loader-track { height: 5px; margin-top: 17px; overflow: hidden; background: rgba(1,10,22,.72); border-radius: 99px; }
+.document-loader-track span { display: block; width: 8%; height: 100%; background: linear-gradient(90deg, var(--blue), var(--cyan)); border-radius: inherit; box-shadow: 0 0 12px rgba(70,190,255,.48); transition: width .22s ease; }
+.document-loader.is-indeterminate .document-loader-track span { width: 34%; animation: document-loader-progress 1.15s ease-in-out infinite; }
 .document-message { max-width: 420px; margin: 25vh auto 0; color: var(--muted); font-size: 14px; line-height: 1.55; text-align: center; }
 .document-message.is-error { color: #ff9bad; }
 body.document-open { overflow: hidden; }
@@ -256,6 +266,10 @@ body.document-open { overflow: hidden; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 @keyframes live-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.75); } }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes document-loader-spin { to { transform: rotate(360deg); } }
+@keyframes document-loader-pulse { 0%, 100% { opacity: .72; transform: translate(-50%, -50%) rotate(45deg) scale(.8); } 50% { opacity: 1; transform: translate(-50%, -50%) rotate(45deg) scale(1); } }
+@keyframes document-loader-progress { 0% { transform: translateX(-115%); } 55% { transform: translateX(130%); } 100% { transform: translateX(315%); } }
+@keyframes document-page-in { from { opacity: .35; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
 @media (max-width: 420px) {
   .app-shell { padding: 18px 14px 100px; }
